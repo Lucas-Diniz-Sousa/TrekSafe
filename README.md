@@ -1,79 +1,283 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# 🗺️ TrekSafe
 
-# Getting Started
+Um aplicativo de mapas React Native moderno e intuitivo com suporte a modo escuro automático e controles de navegação avançados.
 
-> **Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+## 📱 Sobre o App
 
-## Step 1: Start the Metro Server
+TrekSafe é um aplicativo de mapas desenvolvido em React Native que oferece uma experiência de navegação fluida e moderna. Com integração ao Google Maps, detecção automática de localização e interface adaptativa, é perfeito para explorar e navegar por qualquer região.
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+## ✨ Funcionalidades
 
-To start Metro, run the following command from the _root_ of your React Native project:
+### 🗺️ **Mapa Interativo**
+
+- Integração completa com Google Maps
+- Navegação fluida com gestos touch
+- Zoom por pinça e botões dedicados
+- Rotação e inclinação do mapa
+
+### 📍 **Localização**
+
+- Detecção automática da localização do usuário
+- Botão para centralizar no usuário
+- Fallback para localização padrão (Belo Horizonte)
+- Tratamento robusto de erros de GPS
+
+### 🌙 **Modo Escuro Automático**
+
+- Detecção automática do tema do sistema
+- Estilo de mapa adaptativo (claro/escuro)
+- Interface responsiva ao tema
+- Transições suaves entre temas
+
+### 🎮 **Controles Intuitivos**
+
+- Botões flutuantes para zoom (+/-)
+- Botão de centralização na localização
+- Feedback visual nos controles
+- Animações suaves
+
+### ⚡ **Performance Otimizada**
+
+- Cache de mapas habilitado
+- Renderização eficiente
+- Configurações otimizadas para Android/iOS
+- Carregamento rápido
+
+## 🛠️ Tecnologias Utilizadas
+
+- **React Native** - Framework principal
+- **react-native-maps** - Integração com mapas
+- **react-native-permissions** - Gerenciamento de permissões
+- **@react-native-community/geolocation** - Serviços de localização
+- **Google Maps API** - Provedor de mapas
+
+## �� Pré-requisitos
+
+Antes de começar, certifique-se de ter instalado:
+
+- [Node.js](https://nodejs.org/) (versão 14 ou superior)
+- [Yarn](https://yarnpkg.com/) (gerenciador de pacotes)
+- [React Native CLI](https://reactnative.dev/docs/environment-setup)
+- [Android Studio](https://developer.android.com/studio) (para Android)
+- [Xcode](https://developer.apple.com/xcode/) (para iOS - apenas macOS)
+
+## 🚀 Instalação
+
+### 1. Clone o repositório
 
 ```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+git clone https://github.com/seu-usuario/treksafe.git
+cd treksafe
 ```
 
-## Step 2: Start your Application
-
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
-
-### For Android
+### 2. Instale as dependências
 
 ```bash
-# using npm
-npm run android
+yarn install
+```
 
-# OR using Yarn
+### 3. Configuração do Google Maps
+
+#### Android
+
+1. Obtenha uma chave da API do Google Maps no [Google Cloud Console](https://console.cloud.google.com/)
+2. Ative as seguintes APIs:
+   - Maps SDK for Android
+   - Maps SDK for iOS (se usar iOS)
+3. Adicione a chave no arquivo `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<application>
+  <meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="SUA_CHAVE_AQUI"/>
+</application>
+```
+
+#### iOS
+
+1. Adicione a chave no arquivo `ios/TrekSafe/AppDelegate.m`:
+
+```objc
+#import <GoogleMaps/GoogleMaps.h>
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+  [GMSServices provideAPIKey:@"SUA_CHAVE_AQUI"];
+  // resto do código...
+}
+```
+
+### 4. Configuração de permissões
+
+#### Android
+
+As permissões já estão configuradas no `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+#### iOS
+
+Adicione no `ios/TrekSafe/Info.plist`:
+
+```xml
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Este app precisa acessar sua localização para mostrar sua posição no mapa.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Este app precisa acessar sua localização para mostrar sua posição no mapa.</string>
+```
+
+## ��‍♂️ Executando o App
+
+### Android
+
+```bash
+# Inicie o Metro bundler
+yarn start
+
+# Em outro terminal, execute o app
 yarn android
 ```
 
-### For iOS
+### iOS
 
 ```bash
-# using npm
-npm run ios
+# Instale os pods (apenas na primeira vez ou após mudanças)
+cd ios && pod install && cd ..
 
-# OR using Yarn
+# Inicie o Metro bundler
+yarn start
+
+# Em outro terminal, execute o app
 yarn ios
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+## 📁 Estrutura do Projeto
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+```
+TrekSafe/
+├── src/
+│   ├── screens/
+│   │   └── MapScreen/
+│   │       ├── index.js          # Componente principal do mapa
+│   │       └── styles.js         # Estilos do componente
+│   └── App.js                    # Componente raiz
+├── android/                      # Configurações Android
+├── ios/                         # Configurações iOS
+├── package.json                 # Dependências do projeto
+├── yarn.lock                    # Lock file do Yarn
+└── README.md                    # Este arquivo
+```
 
-## Step 3: Modifying your App
+## 🎨 Personalização
 
-Now that you have successfully run the app, let's modify it.
+### Alterando o estilo do mapa
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+O estilo do modo escuro pode ser customizado no arquivo `src/screens/MapScreen/index.js` na variável `mapStyle`.
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+### Modificando a localização padrão
 
-## Congratulations! :tada:
+Para alterar a localização padrão (atualmente Belo Horizonte), modifique as coordenadas no arquivo `src/screens/MapScreen/index.js`:
 
-You've successfully run and modified your React Native App. :partying_face:
+```javascript
+const defaultLocation = {
+  latitude: -19.916667, // Sua latitude
+  longitude: -43.933333, // Sua longitude
+};
+```
 
-### Now what?
+### Personalizando cores
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
+As cores do tema podem ser alteradas no arquivo `src/screens/MapScreen/styles.js`.
 
-# Troubleshooting
+## �� Scripts Disponíveis
 
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+```bash
+# Instalar dependências
+yarn install
 
-# Learn More
+# Iniciar o Metro bundler
+yarn start
 
-To learn more about React Native, take a look at the following resources:
+# Executar no Android
+yarn android
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+# Executar no iOS
+yarn ios
+
+# Limpar cache do Metro
+yarn start --reset-cache
+
+# Verificar problemas de configuração
+yarn react-native doctor
+```
+
+## 🐛 Solução de Problemas
+
+### Erro de build no Android
+
+```bash
+cd android
+./gradlew clean
+cd ..
+yarn android
+```
+
+### Erro de permissões
+
+Certifique-se de que as permissões estão configuradas corretamente e que o usuário concedeu acesso à localização.
+
+### Mapa não carrega
+
+1. Verifique se a chave do Google Maps está correta
+2. Confirme se as APIs necessárias estão ativadas no Google Cloud Console
+3. Verifique a conexão com a internet
+
+### Problemas com pods (iOS)
+
+```bash
+cd ios
+pod deintegrate
+pod install
+cd ..
+yarn ios
+```
+
+## 📱 Compatibilidade
+
+- **Android**: API 21+ (Android 5.0+)
+- **iOS**: iOS 10.0+
+- **React Native**: 0.72+
+
+## 🤝 Contribuindo
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 👨‍💻 Autor
+
+**Lucas Diniz**
+
+- Desenvolvedor Fullstack
+- GitHub: [@seu-usuario](https://github.com/seu-usuario)
+
+## �� Agradecimentos
+
+- [React Native Maps](https://github.com/react-native-maps/react-native-maps)
+- [React Native Community](https://github.com/react-native-community)
+- [Google Maps Platform](https://developers.google.com/maps)
+
+---
+
+⭐ Se este projeto te ajudou, considere dar uma estrela no repositório!
