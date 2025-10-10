@@ -1,8 +1,13 @@
+import { NavigationContainer } from '@react-navigation/native';
 import React from 'react';
-import MapScreen from './screens/MapScreen';
+import AppNavigator from './navigation/AppNavigator';
 
 const App = () => {
-  return <MapScreen />;
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
+  );
 };
 
 export default App;

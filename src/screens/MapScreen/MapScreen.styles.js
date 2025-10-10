@@ -1,0 +1,79 @@
+// src/screens/MapScreen/MapScreen.styles.js
+import { StyleSheet } from 'react-native';
+import { Colors, Fonts, ColorUtils } from '../../theme/theme';
+
+export const createStyles = (isDarkMode) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: ColorUtils.getThemeColor(Colors.backgroundPrimary, Colors.backgroundPrimaryDark, isDarkMode),
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: ColorUtils.getThemeColor(Colors.backgroundPrimary, Colors.backgroundPrimaryDark, isDarkMode),
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: ColorUtils.getThemeColor(Colors.textPrimary, Colors.textPrimaryDark, isDarkMode),
+    textAlign: 'center',
+    fontWeight: '500',
+    fontFamily: Fonts.body,
+  },
+  overlayError: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: Colors.errorRed,
+    padding: 15,
+    borderRadius: 12,
+    zIndex: 1,
+    elevation: 8,
+    shadowColor: Colors.shadowDark,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  overlayErrorText: {
+    color: Colors.white,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: Fonts.body,
+  },
+  markerContainer: {
+    backgroundColor: Colors.white,
+    padding: 8,
+    borderRadius: 20,
+    borderColor: Colors.verdeFlorestaProfundo,
+    borderWidth: 2,
+    elevation: 4,
+    shadowColor: Colors.shadowMedium,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  userMarkerContainer: {
+    backgroundColor: Colors.blue500,
+    borderColor: Colors.blue600,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: ColorUtils.withOpacity(Colors.backgroundPrimary, 0.8),
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+});

@@ -1,20 +1,34 @@
-import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import MapScreen from '../screens/MapScreen'; // Nossa tela de mapa
+import React from 'react';
+import LoginScreen from '../screens/LoginScreen/LoginScreen';
+import MapScreen from '../screens/MapScreen/MapScreen';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   return (
-    <Stack.Navigator initialRouteName="Map">
+    <Stack.Navigator
+      initialRouteName="Map"
+      screenOptions={{
+        headerShown: false, // Remove header de todas as telas por padrão
+        animation: 'slide_from_right', // Animação suave entre telas
+      }}
+    >
       <Stack.Screen
         name="Map"
         component={MapScreen}
         options={{
-          headerShown: false, // Oculta o cabeçalho padrão para o mapa
+          headerShown: false,
         }}
       />
-      {/* Outras telas serão adicionadas aqui futuramente */}
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      {/* Futuras telas serão adicionadas aqui */}
     </Stack.Navigator>
   );
 };

@@ -1,22 +1,24 @@
+// src/screens/MapScreen/MapScreen.js
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
-  StyleSheet,
-  Platform,
   Text,
   ActivityIndicator,
   useColorScheme,
   AppState,
   Alert,
+  Platform,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import Geolocation from '@react-native-community/geolocation';
 import MapControls from '../../components/MapControls/MapControls'; 
-import { Colors, Fonts } from '../../theme/theme';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Importe a biblioteca de ícones também aqui para os marcadores
+import { Colors, ColorUtils } from '../../theme/theme';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { createStyles } from './MapScreen.styles';
+import TrailsModal from '../../components/TrailsModal/TrialsModal';
 
-const MapScreen = () => {
+const MapScreen = ({ navigation }) => {
   const initialRegion = {
     latitude: -19.916667,
     longitude: -43.933333,
@@ -38,8 +40,13 @@ const MapScreen = () => {
   const [currentTrail, setCurrentTrail] = useState([]);
   const [savedTrails, setSavedTrails] = useState([]);
   
+  // Estado para modal de trilhas
+  const [showTrailsModal, setShowTrailsModal] = useState(false);
+  
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
+  const styles = createStyles(isDarkMode);
+  
   const mapRef = useRef(null);
   const appState = useRef(AppState.currentState);
   const isUpdatingRegion = useRef(false);
@@ -47,77 +54,6 @@ const MapScreen = () => {
 
   console.log('region atual:', region);
   console.log('Gravando trilha:', isRecording, 'Pontos:', currentTrail.length);
-
-  const dynamicStyles = useMemo(
-    () =>
-      StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: isDarkMode ? Colors.verdeFlorestaProfundo : Colors.cremeClaro,
-        },
-        map: {
-          ...StyleSheet.absoluteFillObject,
-        },
-        loadingContainer: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: isDarkMode ? Colors.verdeFlorestaProfundo : Colors.cremeClaro,
-        },
-        loadingText: {
-          marginTop: 10,
-          fontSize: 16,
-          color: isDarkMode ? Colors.cremeClaro : Colors.verdeFlorestaProfundo,
-          textAlign: 'center',
-          fontWeight: '500',
-          fontFamily: Fonts.montserratMedium,
-        },
-        overlayError: {
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
-          backgroundColor: isDarkMode ? Colors.verdeFlorestaProfundo : Colors.errorRed,
-          padding: 15,
-          borderRadius: 8,
-          zIndex: 1,
-          elevation: 5,
-          shadowColor: Colors.black,
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
-          shadowOpacity: 0.25,
-          shadowRadius: 3.84,
-        },
-        overlayErrorText: {
-          color: isDarkMode ? Colors.errorDark : Colors.white,
-          textAlign: 'center',
-          fontSize: 14,
-          fontWeight: '500',
-          fontFamily: Fonts.montserratMedium,
-        },
-        markerContainer: {
-          backgroundColor: Colors.cremeClaro,
-          padding: 8,
-          borderRadius: 20,
-          borderColor: Colors.verdeFlorestaProfundo,
-          borderWidth: 2,
-        },
-        markerIcon: {
-          fontSize: 20,
-          color: Colors.verdeFlorestaProfundo,
-        },
-        userMarkerContainer: {
-          backgroundColor: Colors.azulCascata,
-          borderColor: Colors.azulCascata,
-        },
-        userMarkerIcon: {
-          color: Colors.cremeClaro,
-        }
-      }),
-    [isDarkMode],
-  );
 
   // Estilo de mapa simplificado e visualmente agradável
   const mapStyle = useMemo(() => {
@@ -166,7 +102,7 @@ const MapScreen = () => {
         {
           "featureType": "poi.park",
           "elementType": "geometry",
-          "stylers": [{"color": Colors.verdeFlorestaProfundo}] // Parques com cor da marca
+          "stylers": [{"color": Colors.verdeFlorestaProfundo}]
         },
         {
           "featureType": "poi.park",
@@ -224,7 +160,7 @@ const MapScreen = () => {
           "stylers": [{"color": Colors.mapTextDark}]
         }
       ];
-    } else { // Light Mode
+    } else {
       return [
         {
           "elementType": "geometry",
@@ -269,7 +205,7 @@ const MapScreen = () => {
         {
           "featureType": "poi.park",
           "elementType": "geometry",
-          "stylers": [{"color": Colors.verdeMusgo}] // Parques com cor da marca
+          "stylers": [{"color": Colors.verdeMusgo}]
         },
         {
           "featureType": "poi.park",
@@ -431,6 +367,28 @@ const MapScreen = () => {
     );
   }, [locationPermissionGranted]);
 
+  // Função para calcular distância entre pontos
+  const calculateDistance = useCallback((points) => {
+    if (points.length < 2) return 0;
+    
+    let distance = 0;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      
+      const R = 6371; // Raio da Terra em km
+      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
+      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(prev.latitude * Math.PI / 180) * Math.cos(curr.latitude * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance += R * c;
+    }
+    
+    return distance;
+  }, []);
+
   // Funções para gravação de trilha
   const startRecording = useCallback(() => {
     if (!locationPermissionGranted) {
@@ -481,6 +439,8 @@ const MapScreen = () => {
         date: new Date().toISOString(),
         points: [...currentTrail],
         distance: calculateDistance(currentTrail),
+        visible: true, // Por padrão, trilha fica visível
+        name: null, // Nome será definido pelo usuário depois
       };
       
       setSavedTrails(prev => [...prev, newTrail]);
@@ -491,28 +451,7 @@ const MapScreen = () => {
     }
 
     setCurrentTrail([]);
-  }, [currentTrail]);
-
-  const calculateDistance = useCallback((points) => {
-    if (points.length < 2) return 0;
-    
-    let distance = 0;
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      
-      const R = 6371;
-      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
-      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(prev.latitude * Math.PI / 180) * Math.cos(curr.latitude * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      distance += R * c;
-    }
-    
-    return distance;
-  }, []);
+  }, [currentTrail, calculateDistance]);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
@@ -522,21 +461,43 @@ const MapScreen = () => {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  // Funções do menu
-  const handleLogin = useCallback(() => {
-    Alert.alert('Login', 'Funcionalidade de login será implementada em breve.');
+  // Novas funções para gerenciar trilhas
+  const handleUpdateTrail = useCallback((trailId, updates) => {
+    setSavedTrails(prev => 
+      prev.map(trail => 
+        trail.id === trailId 
+          ? { ...trail, ...updates }
+          : trail
+      )
+    );
   }, []);
 
-  const handleViewTrails = useCallback(() => {
-    if (savedTrails.length === 0) {
-      Alert.alert('Minhas Trilhas', 'Nenhuma trilha gravada ainda.');
+  const handleDeleteTrail = useCallback((trailId) => {
+    setSavedTrails(prev => prev.filter(trail => trail.id !== trailId));
+  }, []);
+
+  const handleToggleTrailVisibility = useCallback((trailId, visible) => {
+    setSavedTrails(prev => 
+      prev.map(trail => 
+        trail.id === trailId 
+          ? { ...trail, visible }
+          : trail
+      )
+    );
+  }, []);
+
+  // Função modificada para navegar para login
+  const handleLogin = useCallback(() => {
+    if (navigation) {
+      navigation.navigate('Login');
     } else {
-      const trailsInfo = savedTrails.map((trail, index) => 
-        `${index + 1}. ${new Date(trail.date).toLocaleDateString()} - ${trail.distance.toFixed(2)}km`
-      ).join('\n');
-      Alert.alert('Minhas Trilhas', trailsInfo);
+      Alert.alert('Login', 'Funcionalidade de login será implementada em breve.');
     }
-  }, [savedTrails]);
+  }, [navigation]);
+
+  const handleViewTrails = useCallback(() => {
+    setShowTrailsModal(true);
+  }, []);
 
   const handleMapReady = useCallback(() => {
     console.log('Mapa pronto para uso');
@@ -614,6 +575,12 @@ const MapScreen = () => {
     }
   }, [region, isMapReady, updateRegion]);
 
+  // Filtrar trilhas visíveis para exibir no mapa
+  const visibleTrails = useMemo(() => 
+    savedTrails.filter(trail => trail.visible !== false),
+    [savedTrails]
+  );
+
   // Cleanup ao desmontar componente
   useEffect(() => {
     return () => {
@@ -673,9 +640,12 @@ const MapScreen = () => {
 
   if (loading && !isMapReady) {
     return (
-      <View style={dynamicStyles.loadingContainer}>
-        <ActivityIndicator size="large" color={isDarkMode ? Colors.douradoNobre : Colors.verdeFlorestaProfundo} />
-        <Text style={dynamicStyles.loadingText}>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator 
+          size="large" 
+          color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+        />
+        <Text style={styles.loadingText}>
           Carregando mapa...
         </Text>
       </View>
@@ -683,19 +653,19 @@ const MapScreen = () => {
   }
 
   return (
-    <View style={dynamicStyles.container}>
+    <View style={styles.container}>
       <MapView
         key={`map-${mapKey}`}
         ref={mapRef}
         provider={PROVIDER_GOOGLE}
-        style={dynamicStyles.map}
+        style={styles.map}
         initialRegion={region}
         customMapStyle={mapStyle}
         loadingEnabled={true}
-        showsUserLocation={false} // Desabilitado para usar marcador customizado
+        showsUserLocation={false}
         followsUserLocation={false}
-        loadingIndicatorColor={isDarkMode ? Colors.douradoNobre : Colors.verdeFlorestaProfundo}
-        loadingBackgroundColor={isDarkMode ? Colors.verdeFlorestaProfundo : Colors.cremeClaro}
+        loadingIndicatorColor={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)}
+        loadingBackgroundColor={ColorUtils.getThemeColor(Colors.backgroundPrimary, Colors.backgroundPrimaryDark, isDarkMode)}
         showsCompass={false}
         zoomEnabled={true}
         zoomControlEnabled={false}
@@ -727,8 +697,8 @@ const MapScreen = () => {
             title="Sua Localização"
             description="Você está aqui"
           >
-            <View style={[dynamicStyles.markerContainer, dynamicStyles.userMarkerContainer]}>
-              <Icon name="walk" style={[dynamicStyles.markerIcon, dynamicStyles.userMarkerIcon]} />
+            <View style={[styles.markerContainer, styles.userMarkerContainer]}>
+              <Icon name="hiking" size={20} color={Colors.white} />
             </View>
           </Marker>
         )}
@@ -737,18 +707,18 @@ const MapScreen = () => {
         {isRecording && currentTrail.length > 1 && (
           <Polyline
             coordinates={currentTrail}
-            strokeColor={isDarkMode ? Colors.douradoNobre : Colors.azulCascata} 
+            strokeColor={ColorUtils.getThemeColor(Colors.trailActive, Colors.douradoNobre, isDarkMode)} 
             strokeWidth={4}
             lineDashPattern={[5, 5]}
           />
         )}
         
-        {/* Trilhas salvas */}
-        {savedTrails.map((trail) => (
+        {/* Trilhas salvas (apenas as visíveis) */}
+        {visibleTrails.map((trail) => (
           <Polyline
             key={trail.id}
             coordinates={trail.points}
-            strokeColor={isDarkMode ? Colors.verdeMusgo : Colors.verdeFlorestaProfundo} 
+            strokeColor={ColorUtils.getThemeColor(Colors.trailSaved, Colors.verdeMusgo, isDarkMode)} 
             strokeWidth={3}
           />
         ))}
@@ -761,13 +731,12 @@ const MapScreen = () => {
           title="Mirante da Serra"
           description="Ótima vista da cidade!"
         >
-          <View style={dynamicStyles.markerContainer}>
-            <Icon name="mountain" style={dynamicStyles.markerIcon} />
+          <View style={styles.markerContainer}>
+            <Icon name="terrain" size={20} color={Colors.verdeFlorestaProfundo} />
           </View>
         </Marker>
       </MapView>
 
-      {/* Componente de controles separado */}
       <MapControls
         isDarkMode={isDarkMode}
         isMapReady={isMapReady}
@@ -781,15 +750,29 @@ const MapScreen = () => {
         onViewTrails={handleViewTrails}
       />
 
+      {/* Modal de trilhas */}
+      <TrailsModal
+        visible={showTrailsModal}
+        isDarkMode={isDarkMode}
+        trails={savedTrails}
+        onClose={() => setShowTrailsModal(false)}
+        onUpdateTrail={handleUpdateTrail}
+        onDeleteTrail={handleDeleteTrail}
+        onToggleTrailVisibility={handleToggleTrailVisibility}
+      />
+
       {loading && isMapReady && (
-        <View style={[dynamicStyles.loadingContainer, { position: 'absolute', zIndex: 10 }]}>
-          <ActivityIndicator size="large" color={isDarkMode ? Colors.douradoNobre : Colors.verdeFlorestaProfundo} />
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator 
+            size="large" 
+            color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+          />
         </View>
       )}
 
       {error && (
-        <View style={dynamicStyles.overlayError}>
-          <Text style={dynamicStyles.overlayErrorText}>
+        <View style={styles.overlayError}>
+          <Text style={styles.overlayErrorText}>
             {error}
           </Text>
         </View>
