@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, ColorUtils } from '../../theme/theme';
 import { createStyles } from './LoginScreen.styles';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -27,89 +28,111 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
   const styles = createStyles(isDarkMode);
-
-  // Credenciais vÃ¡lidas
-  const VALID_EMAIL = 'slucasdiniz@gmail.com';
-  const VALID_PASSWORD = '123';
+  const { login, recoverPassword, authState } = useAuth();
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
+  const validatePassword = (password) => {
+    return password.length >= 6;
+  };
+
   const handleEmailChange = (text) => {
     setEmail(text);
-    if (emailError) setEmailError('');
+    if (text && !validateEmail(text)) {
+      setEmailError('Email inválido');
+    } else {
+      setEmailError('');
+    }
   };
 
   const handlePasswordChange = (text) => {
     setPassword(text);
-    if (passwordError) setPasswordError('');
+    if (text && !validatePassword(text)) {
+      setPasswordError('Senha deve ter pelo menos 6 caracteres');
+    } else {
+      setPasswordError('');
+    }
   };
 
   const handleLogin = async () => {
-    // Reset errors
-    setEmailError('');
-    setPasswordError('');
-
-    // ValidaÃ§Ãµes
-    let hasError = false;
-
-    if (!email.trim()) {
-      setEmailError('Email Ã© obrigatÃ³rio');
-      hasError = true;
-    } else if (!validateEmail(email)) {
-      setEmailError('Email invÃ¡lido');
-      hasError = true;
-    } else if (email !== VALID_EMAIL) {
-      setEmailError('Email nÃ£o encontrado');
-      hasError = true;
-    }
-
-    if (!password.trim()) {
-      setPasswordError('Senha Ã© obrigatÃ³ria');
-      hasError = true;
-    } else if (password !== VALID_PASSWORD) {
-      setPasswordError('Senha incorreta');
-      hasError = true;
-    }
-
-    if (hasError) return;
+    if (!isFormValid) return;
 
     setIsLoading(true);
 
-    // Simular delay de autenticaÃ§Ã£o
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await login(email, password);
+      
       Alert.alert(
         'Login realizado!',
         'Bem-vindo ao TrekSafe!',
         [
           {
-            text: 'Continuar',
+            text: 'OK',
             onPress: () => {
               if (onLoginSuccess) {
-                onLoginSuccess({ email, name: 'Lucas Diniz' });
-              }
-              if (navigation) {
-                navigation.goBack();
+                onLoginSuccess();
+              } else if (navigation) {
+                navigation.navigate('MapScreen');
               }
             }
           }
         ]
       );
-    }, 1500);
+    } catch (error) {
+      Alert.alert(
+        'Erro no login',
+        error.message || 'Erro ao fazer login. Tente novamente.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
+    if (!email.trim()) {
+      Alert.alert(
+        'Email necessário',
+        'Digite seu email no campo acima para recuperar a senha.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert(
+        'Email inválido',
+        'Digite um email válido para recuperar a senha.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'Esqueci minha senha',
-      'Um link de recuperaÃ§Ã£o serÃ¡ enviado para seu email.',
+      'Um link de recuperação será enviado para seu email.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Enviar', 
-          onPress: () => Alert.alert('Email enviado!', 'Verifique sua caixa de entrada.') 
+          onPress: async () => {
+             try {
+               await recoverPassword(email);
+               Alert.alert(
+                 'Email enviado!', 
+                 'Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.'
+               );
+             } catch (error) {
+               Alert.alert(
+                 'Erro',
+                 error.message || 'Erro ao enviar email de recuperação. Tente novamente.',
+                 [{ text: 'OK' }]
+               );
+             }
+           }
         }
       ]
     );

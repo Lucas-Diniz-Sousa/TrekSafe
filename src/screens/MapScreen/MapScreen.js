@@ -17,8 +17,12 @@ import { Colors, ColorUtils } from '../../theme/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { createStyles } from './MapScreen.styles';
 import TrailsModal from '../../components/TrailsModal/TrialsModal';
+import { useAuth } from '../../contexts/AuthContext';
+import TrailService from '../../services/trailService';
 
 const MapScreen = ({ navigation }) => {
+  const { authState, user } = useAuth();
+  
   const initialRegion = {
     latitude: -19.916667,
     longitude: -43.933333,
@@ -39,6 +43,12 @@ const MapScreen = ({ navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [currentTrail, setCurrentTrail] = useState([]);
   const [savedTrails, setSavedTrails] = useState([]);
+  const [currentTrailId, setCurrentTrailId] = useState(null);
+  const [isSavingTrail, setIsSavingTrail] = useState(false);
+  
+  // Estados para trilhas da API
+  const [publicTrails, setPublicTrails] = useState([]);
+  const [loadingTrails, setLoadingTrails] = useState(false);
   
   // Estado para modal de trilhas
   const [showTrailsModal, setShowTrailsModal] = useState(false);
@@ -389,16 +399,36 @@ const MapScreen = ({ navigation }) => {
     return distance;
   }, []);
 
-  // FunÃ§Ãµes para gravaÃ§Ã£o de trilha
-  const startRecording = useCallback(() => {
+  // Funções para gravação de trilha
+  const startRecording = useCallback(async () => {
     if (!locationPermissionGranted) {
-      Alert.alert('Erro', 'PermissÃ£o de localizaÃ§Ã£o necessÃ¡ria para gravar trilha.');
+      Alert.alert('Erro', 'Permissão de localização necessária para gravar trilha.');
       return;
     }
 
-    console.log('Iniciando gravaÃ§Ã£o de trilha');
+    console.log('Iniciando gravação de trilha');
     setIsRecording(true);
     setCurrentTrail([]);
+    setCurrentTrailId(null);
+
+    // Se usuário estiver autenticado, criar trilha na API
+    if (authState === 'AUTHENTICATED' && user) {
+      try {
+        const trailData = {
+          name: `Trilha ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+          description: 'Trilha gravada automaticamente',
+          difficulty: 'medium',
+          isPublic: false,
+        };
+        
+        const createdTrail = await TrailService.createTrail(trailData);
+        setCurrentTrailId(createdTrail.id);
+        console.log('Trilha criada na API:', createdTrail.id);
+      } catch (error) {
+        console.warn('Erro ao criar trilha na API:', error);
+        // Continua gravando localmente mesmo se a API falhar
+      }
+    }
 
     const watchOptions = {
       enableHighAccuracy: true,
@@ -408,25 +438,40 @@ const MapScreen = ({ navigation }) => {
     };
 
     watchId.current = Geolocation.watchPosition(
-      position => {
+      async position => {
         const { latitude, longitude } = position.coords;
         const newPoint = { latitude, longitude };
         
         console.log('Novo ponto da trilha:', newPoint);
         setCurrentTrail(prev => [...prev, newPoint]);
         setLocation(newPoint);
+
+        // Se tiver trilha na API, adicionar coordenada
+        if (currentTrailId && authState === 'AUTHENTICATED') {
+          try {
+            await TrailService.addCoordinateToTrail(currentTrailId, {
+              latitude,
+              longitude,
+              timestamp: new Date().toISOString(),
+            });
+          } catch (error) {
+            console.warn('Erro ao adicionar coordenada à trilha:', error);
+            // Continua gravando localmente
+          }
+        }
       },
       error => {
-        console.warn('Erro ao rastrear posiÃ§Ã£o:', error);
-        setError('Erro ao rastrear posiÃ§Ã£o durante gravaÃ§Ã£o.');
+        console.warn('Erro ao rastrear posição:', error);
+        setError('Erro ao rastrear posição durante gravação.');
       },
       watchOptions
     );
-  }, [locationPermissionGranted]);
+  }, [locationPermissionGranted, authState, user, currentTrailId]);
 
-  const stopRecording = useCallback(() => {
-    console.log('Parando gravaÃ§Ã£o de trilha');
+  const stopRecording = useCallback(async () => {
+    console.log('Parando gravação de trilha');
     setIsRecording(false);
+    setIsSavingTrail(true);
 
     if (watchId.current !== null) {
       Geolocation.clearWatch(watchId.current);
@@ -434,24 +479,44 @@ const MapScreen = ({ navigation }) => {
     }
 
     if (currentTrail.length > 0) {
+      const distance = calculateDistance(currentTrail);
       const newTrail = {
-        id: Date.now(),
+        id: currentTrailId || Date.now(),
         date: new Date().toISOString(),
         points: [...currentTrail],
-        distance: calculateDistance(currentTrail),
-        visible: true, // Por padrÃ£o, trilha fica visÃ­vel
-        name: null, // Nome serÃ¡ definido pelo usuÃ¡rio depois
+        distance,
+        visible: true,
+        name: `Trilha ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        apiId: currentTrailId,
       };
+
+      // Se tiver trilha na API, finalizar
+      if (currentTrailId && authState === 'AUTHENTICATED') {
+        try {
+          const duration = Math.round(distance / 4 * 60); // Estimativa: 4km/h = 1 minuto por 67m
+          await TrailService.updateTrail(currentTrailId, {
+            status: 'completed',
+            totalDistance: distance,
+            duration: duration,
+            endTime: new Date().toISOString(),
+          });
+          console.log('Trilha finalizada na API');
+        } catch (error) {
+          console.warn('Erro ao finalizar trilha na API:', error);
+        }
+      }
       
       setSavedTrails(prev => [...prev, newTrail]);
       Alert.alert(
         'Trilha Salva', 
-        `Trilha gravada com ${currentTrail.length} pontos e ${newTrail.distance.toFixed(2)}km de distÃ¢ncia.`
+        `Trilha gravada com ${currentTrail.length} pontos e ${distance.toFixed(2)}km de distância.${currentTrailId ? ' Sincronizada com a nuvem.' : ''}`
       );
     }
 
     setCurrentTrail([]);
-  }, [currentTrail, calculateDistance]);
+    setCurrentTrailId(null);
+    setIsSavingTrail(false);
+  }, [currentTrail, calculateDistance, currentTrailId, authState]);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
@@ -460,6 +525,44 @@ const MapScreen = ({ navigation }) => {
       startRecording();
     }
   }, [isRecording, startRecording, stopRecording]);
+
+  // Função para carregar trilhas públicas da API
+  const loadPublicTrails = useCallback(async () => {
+    if (!isMapReady || loadingTrails) return;
+
+    setLoadingTrails(true);
+    try {
+      // Calcular área baseada na região atual do mapa
+      const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
+      const area = {
+        northEast: {
+          latitude: latitude + latitudeDelta / 2,
+          longitude: longitude + longitudeDelta / 2,
+        },
+        southWest: {
+          latitude: latitude - latitudeDelta / 2,
+          longitude: longitude - longitudeDelta / 2,
+        },
+      };
+
+      const trails = await TrailService.searchTrailsByArea(area);
+      setPublicTrails(trails);
+      console.log(`Carregadas ${trails.length} trilhas públicas da região`);
+    } catch (error) {
+      console.warn('Erro ao carregar trilhas públicas:', error);
+    } finally {
+      setLoadingTrails(false);
+    }
+  }, [region, isMapReady, loadingTrails]);
+
+  // Carregar trilhas quando a região mudar (com debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadPublicTrails();
+    }, 1000); // Debounce de 1 segundo
+
+    return () => clearTimeout(timeoutId);
+  }, [region, loadPublicTrails]);
 
   // Novas funÃ§Ãµes para gerenciar trilhas
   const handleUpdateTrail = useCallback((trailId, updates) => {
@@ -713,13 +816,24 @@ const MapScreen = ({ navigation }) => {
           />
         )}
         
-        {/* Trilhas salvas (apenas as visÃ­veis) */}
+        {/* Trilhas salvas (apenas as visíveis) */}
         {visibleTrails.map((trail) => (
           <Polyline
             key={trail.id}
             coordinates={trail.points}
             strokeColor={ColorUtils.getThemeColor(Colors.trailSaved, Colors.verdeMusgo, isDarkMode)} 
             strokeWidth={3}
+          />
+        ))}
+
+        {/* Trilhas públicas da API */}
+        {publicTrails.map((trail) => (
+          <Polyline
+            key={`public-${trail.id}`}
+            coordinates={trail.coordinates || []}
+            strokeColor={ColorUtils.getThemeColor(Colors.blue500, Colors.blue400, isDarkMode)} 
+            strokeWidth={2}
+            strokeOpacity={0.7}
           />
         ))}
         
@@ -729,7 +843,7 @@ const MapScreen = ({ navigation }) => {
             longitude: -43.938,
           }}
           title="Mirante da Serra"
-          description="Ã“tima vista da cidade!"
+          description="Ã?tima vista da cidade!"
         >
           <View style={styles.markerContainer}>
             <Icon name="terrain" size={20} color={Colors.verdeFlorestaProfundo} />
@@ -742,12 +856,17 @@ const MapScreen = ({ navigation }) => {
         isMapReady={isMapReady}
         isRecording={isRecording}
         savedTrails={savedTrails}
+        publicTrails={publicTrails}
+        loadingTrails={loadingTrails}
+        isSavingTrail={isSavingTrail}
+        isAuthenticated={authState === 'AUTHENTICATED'}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onCenterOnUser={centerOnUser}
         onToggleRecording={toggleRecording}
         onLogin={handleLogin}
         onViewTrails={handleViewTrails}
+        onRefreshTrails={loadPublicTrails}
       />
 
       {/* Modal de trilhas */}
@@ -755,10 +874,13 @@ const MapScreen = ({ navigation }) => {
         visible={showTrailsModal}
         isDarkMode={isDarkMode}
         trails={savedTrails}
+        publicTrails={publicTrails}
+        isAuthenticated={authState === 'AUTHENTICATED'}
         onClose={() => setShowTrailsModal(false)}
         onUpdateTrail={handleUpdateTrail}
         onDeleteTrail={handleDeleteTrail}
         onToggleTrailVisibility={handleToggleTrailVisibility}
+        onRefreshPublicTrails={loadPublicTrails}
       />
 
       {loading && isMapReady && (
@@ -767,6 +889,16 @@ const MapScreen = ({ navigation }) => {
             size="large" 
             color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
           />
+        </View>
+      )}
+
+      {isSavingTrail && (
+        <View style={styles.savingOverlay}>
+          <ActivityIndicator 
+            size="large" 
+            color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+          />
+          <Text style={styles.savingText}>Salvando trilha...</Text>
         </View>
       )}
 
