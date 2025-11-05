@@ -1,20 +1,26 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/LoginScreen/LoginScreen';
 import MapScreen from '../screens/MapScreen/MapScreen';
-import { useAuth } from '../contexts/AuthContext';
 import { Colors } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { authState } = useAuth();
+  const { status, isLoading } = useAuth();
 
-  // Tela de loading enquanto verifica autenticação
-  if (authState.status === 'LOADING') {
+  if (status === 'loading' || isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.backgroundPrimary }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: Colors.backgroundPrimary,
+        }}
+      >
         <ActivityIndicator size="large" color={Colors.verdeFlorestaProfundo} />
       </View>
     );
@@ -22,13 +28,13 @@ const AppNavigator = () => {
 
   return (
     <Stack.Navigator
-      initialRouteName={authState.status === 'AUTHENTICATED' ? 'Map' : 'Login'}
+      initialRouteName={status === 'authenticated' ? 'Map' : 'LoginScreen'}
       screenOptions={{
-        headerShown: false, // Remove header de todas as telas por padrão
-        animation: 'slide_from_right', // Animação suave entre telas
+        headerShown: false,
+        animation: 'slide_from_right',
       }}
     >
-      {authState.status === 'AUTHENTICATED' ? (
+      {status === 'authenticated' ? (
         <Stack.Screen
           name="Map"
           component={MapScreen}
@@ -38,14 +44,13 @@ const AppNavigator = () => {
         />
       ) : (
         <Stack.Screen
-          name="Login"
+          name="LoginScreen"
           component={LoginScreen}
           options={{
             headerShown: false,
           }}
         />
       )}
-      {/* Futuras telas serão adicionadas aqui */}
     </Stack.Navigator>
   );
 };

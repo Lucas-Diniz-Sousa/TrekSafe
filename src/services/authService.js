@@ -1,279 +1,721 @@
+// services/authService.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Configura√ß√µes da API
+const API_CONFIG = {
+  BASE_URL: 'http://192.168.18.13:3001',
+  TIMEOUT: 10000, // 10 segundos
+  RETRY_ATTEMPTS: 3,
+  RETRY_DELAY: 1000, // 1 segundo
+};
+
+// Chaves do AsyncStorage
+const STORAGE_KEYS = {
+  TOKEN: 'token',
+  REFRESH_TOKEN: 'refreshToken',
+  USER: 'user',
+  LAST_LOGIN: 'lastLogin',
+};
+
 class AuthService {
-  // Chaves para armazenamento local
-  static TOKEN_KEY = 'authToken';
-  static USER_DATA_KEY = 'userData';
-
-  /**
-   * Registra um novo usu·rio
-   * @param {Object} userData - Dados do usu·rio (name, email, password)
-   * @returns {Promise<Object>} Dados do usu·rio registrado
-   */
-  static async register(userData) {
-    try {
-      const response = await apiClient.post('/auth/register', userData);
-
-      if (response.data.success) {
-        const { user, token, refreshToken } = response.data.data;
-
-        // Salva os tokens e dados do usu·rio de forma segura
-        await SecureStorage.setTokens(token, refreshToken);
-        await SecureStorage.setUserData(user);
-
-        return { user, token, refreshToken };
-      } else {
-        throw new Error(response.data.message || 'Erro no registro');
-      }
-    } catch (error) {
-      console.error('Erro no registro:', error);
-      throw new Error(
-        error.response?.data?.message || 'Erro ao registrar usu·rio'
-      );
-    }
+  constructor() {
+    this.isRefreshing = false;
+    this.failedQueue = [];
   }
 
-  /**
-   * Fazer login do usu·rio
-   * @param {string} email - Email do usu·rio
-   * @param {string} password - Senha do usu·rio
-   * @returns {Promise<Object>} Dados do usu·rio logado
-   */
-  static async login(email, password) {
+  // Utilit√°rio para delay
+  delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Utilit√°rio para validar email
+  // services/authService.js - LINHA 28-32, SUBSTITUIR:
+
+  // Utilit√°rio para validar email
+  validateEmail = email => {
+    // Regex corrigida (sem escape duplo no frontend)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    console.log('üß™ Validando email:', email);
+    console.log('üìä Regex resultado:', emailRegex.test(email));
+    return emailRegex.test(email);
+  };
+
+  // Utilit√°rio para validar senha
+  validatePassword = password => {
+    return password && password.length >= 6;
+  };
+
+  // Fazer requisi√ß√£o com retry e timeout
+  async makeRequest(url, options = {}, retryCount = 0) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
     try {
-      const response = await apiClient.post('/auth/login', {
-        email,
-        password,
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
       });
 
-      if (response.data.success) {
-        const { user, token, refreshToken } = response.data.data;
+      clearTimeout(timeoutId);
 
-        // Salva os tokens e dados do usu·rio de forma segura
-        await SecureStorage.setTokens(token, refreshToken);
-        await SecureStorage.setUserData(user);
-
-        return { user, token, refreshToken };
-      } else {
-        throw new Error(response.data.message || 'Erro no login');
-      }
-    } catch (error) {
-      console.error('Erro no login:', error);
-      throw new Error(
-        error.response?.data?.message || 'Email ou senha incorretos'
-      );
-    }
-  }
-
-  /**
-   * Fazer logout do usu·rio
-   * @returns {Promise<void>}
-   */
-  static async logout() {
-    try {
-      // Tentar fazer logout no servidor
-      try {
-        await apiClient.post('/auth/logout');
-      } catch (error) {
-        console.warn('Erro ao fazer logout no servidor:', error);
-        // Continua com o logout local mesmo se o servidor falhar
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Limpar dados locais de forma segura
-      await SecureStorage.clearAuthData();
+      return await response.json();
     } catch (error) {
-      console.error('Erro no logout:', error);
+      clearTimeout(timeoutId);
+
+      // Retry em caso de erro de rede
+      if (
+        retryCount < API_CONFIG.RETRY_ATTEMPTS &&
+        (error.name === 'AbortError' || error.message.includes('fetch'))
+      ) {
+        console.log(
+          `Tentativa ${retryCount + 1} falhou, tentando novamente...`
+        );
+        await this.delay(API_CONFIG.RETRY_DELAY * (retryCount + 1));
+        return this.makeRequest(url, options, retryCount + 1);
+      }
+
       throw error;
     }
   }
 
-  /**
-   * Solicitar recuperaÁ„o de senha
-   * @param {string} email - Email do usu·rio
-   * @returns {Promise<Object>} Resposta da API
-   */
-  static async recoverPassword(email) {
+  // Salvar dados de autentica√ß√£o
+  async saveAuthData(authData) {
     try {
-      const response = await apiClient.post('/auth/recover-password', {
-        email,
-      });
+      const promises = [
+        AsyncStorage.setItem(STORAGE_KEYS.TOKEN, authData.token),
+        AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user)),
+        AsyncStorage.setItem(STORAGE_KEYS.LAST_LOGIN, new Date().toISOString()),
+      ];
 
-      if (response.data.success) {
-        return response.data;
-      } else {
-        throw new Error(
-          response.data.message || 'Erro ao solicitar recuperaÁ„o de senha'
+      if (authData.refreshToken) {
+        promises.push(
+          AsyncStorage.setItem(
+            STORAGE_KEYS.REFRESH_TOKEN,
+            authData.refreshToken
+          )
         );
       }
+
+      await Promise.all(promises);
+      return true;
     } catch (error) {
-      console.error('Erro na recuperaÁ„o de senha:', error);
-      throw new Error(
-        error.response?.data?.message ||
-          'Erro ao solicitar recuperaÁ„o de senha'
-      );
-    }
-  }
-
-  /**
-   * Redefinir senha com token
-   * @param {string} token - Token de recuperaÁ„o
-   * @param {string} newPassword - Nova senha
-   * @returns {Promise<Object>} Resposta da API
-   */
-  static async resetPassword(token, newPassword) {
-    try {
-      const response = await apiClient.post('/auth/reset-password', {
-        token,
-        password: newPassword,
-      });
-
-      if (response.data.success) {
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Erro ao redefinir senha');
-      }
-    } catch (error) {
-      console.error('Erro ao redefinir senha:', error);
-      throw new Error(
-        error.response?.data?.message || 'Erro ao redefinir senha'
-      );
-    }
-  }
-
-  /**
-   * Obter dados do usu·rio atual
-   * @returns {Promise<Object|null>} Dados do usu·rio ou null
-   */
-  static async getCurrentUser() {
-    try {
-      const token = await SecureStorage.getAccessToken();
-      if (!token) {
-        return null;
-      }
-
-      const response = await apiClient.get('/auth/me');
-
-      if (response.data.success && response.data.user) {
-        // Atualizar dados do usu·rio no storage seguro
-        await SecureStorage.setUserData(response.data.user);
-        return response.data.user;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Erro ao obter usu·rio atual:', error);
-      // Se der erro, limpar dados de autenticaÁ„o
-      await SecureStorage.clearAuthData();
-      return null;
-    }
-  }
-
-  /**
-   * Verificar se o usu·rio est· autenticado
-   * @returns {Promise<boolean>} True se autenticado
-   */
-  static async isAuthenticated() {
-    try {
-      const token = await SecureStorage.getAccessToken();
-      return !!token;
-    } catch (error) {
-      console.error('Erro ao verificar autenticaÁ„o:', error);
+      console.error('Erro ao salvar dados de autentica√ß√£o:', error);
       return false;
     }
   }
 
-  /**
-   * Obter token armazenado
-   * @returns {Promise<string|null>} Token ou null
-   */
-  static async getToken() {
+  // Registrar usu√°rio
+  async register(nome, email, senha) {
     try {
-      return await AsyncStorage.getItem(this.TOKEN_KEY);
+      // Valida√ß√µes locais
+      if (!nome || nome.trim().length < 2) {
+        return {
+          success: false,
+          message: 'Nome deve ter pelo menos 2 caracteres',
+        };
+      }
+
+      if (!this.validateEmail(email)) {
+        return {
+          success: false,
+          message: 'Email inv√°lido',
+        };
+      }
+
+      if (!this.validatePassword(senha)) {
+        return {
+          success: false,
+          message: 'Senha deve ter pelo menos 6 caracteres',
+        };
+      }
+
+      console.log('üîç Tentando registrar usu√°rio:', {
+        nome,
+        email: email,
+        senha: '***',
+      });
+      console.log(
+        'üåê URL da API:',
+        `${API_CONFIG.BASE_URL}/api/users/register`
+      );
+
+      const requestBody = {
+        name: nome.trim(),
+        email: email.toLowerCase().trim(),
+        password: senha,
+      };
+
+      console.log('üì§ Enviando dados:', {
+        name: requestBody.name,
+        email: requestBody.email,
+        password: '***',
+      });
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/users/register`,
+        {
+          method: 'POST',
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      console.log('üì• Resposta da API:', data);
+
+      if (data.success) {
+        const saved = await this.saveAuthData(data.data);
+
+        if (!saved) {
+          return {
+            success: false,
+            message: 'Erro ao salvar dados localmente',
+          };
+        }
+
+        console.log('‚úÖ Registro bem-sucedido');
+        return {
+          success: true,
+          user: data.data.user,
+          token: data.data.token,
+          refreshToken: data.data.refreshToken,
+          message: 'Usu√°rio registrado com sucesso',
+        };
+      } else {
+        console.log('‚ùå Registro falhou:', data.message);
+        return {
+          success: false,
+          message: data.message || 'Erro no registro',
+        };
+      }
+    } catch (error) {
+      console.error('üí• Erro completo no registro:', error);
+      console.error('üí• Stack trace:', error.stack);
+
+      let message = 'Erro de conex√£o com o servidor';
+      if (error.name === 'AbortError') {
+        message = 'Tempo limite excedido. Verifique sua conex√£o.';
+      } else if (error.message.includes('HTTP 400')) {
+        message = 'Dados inv√°lidos fornecidos';
+      } else if (error.message.includes('HTTP 409')) {
+        message = 'Email j√° est√° em uso';
+      }
+
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
+
+  // Login usu√°rio
+  async login(email, senha) {
+    try {
+      console.log('üîç Tentando login com:', { email, senha: '***' });
+      console.log('üåê URL da API:', `${API_CONFIG.BASE_URL}/api/auth/login`);
+
+      // Valida√ß√µes
+      if (!this.validateEmail(email)) {
+        console.log('‚ùå Email inv√°lido:', email);
+        return {
+          success: false,
+          message: 'Email inv√°lido',
+        };
+      }
+
+      if (!senha || senha.length === 0) {
+        console.log('‚ùå Senha vazia');
+        return {
+          success: false,
+          message: 'Senha √© obrigat√≥ria',
+        };
+      }
+
+      const requestBody = {
+        email: email.toLowerCase().trim(),
+        password: senha,
+      };
+
+      console.log('üì§ Enviando dados:', {
+        email: requestBody.email,
+        password: '***',
+      });
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/auth/login`,
+        {
+          method: 'POST',
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      console.log('üì• Resposta da API:', data);
+
+      if (data.success) {
+        const saved = await this.saveAuthData(data.data);
+
+        if (!saved) {
+          return {
+            success: false,
+            message: 'Erro ao salvar dados localmente',
+          };
+        }
+
+        console.log('‚úÖ Login bem-sucedido');
+        return {
+          success: true,
+          user: data.data.user,
+          token: data.data.token,
+          refreshToken: data.data.refreshToken,
+          message: 'Login realizado com sucesso',
+        };
+      } else {
+        console.log('‚ùå Login falhou:', data.message);
+        return {
+          success: false,
+          message: data.message || 'Credenciais inv√°lidas',
+        };
+      }
+    } catch (error) {
+      console.error('üí• Erro completo no login:', error);
+      console.error('üí• Stack trace:', error.stack);
+
+      let message = 'Erro de conex√£o com o servidor';
+      if (error.name === 'AbortError') {
+        message = 'Tempo limite excedido. Verifique sua conex√£o.';
+      } else if (error.message.includes('HTTP 401')) {
+        message = 'Email ou senha incorretos';
+      } else if (error.message.includes('HTTP 429')) {
+        message = 'Muitas tentativas. Tente novamente em alguns minutos.';
+      }
+
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
+
+  // Refresh token
+  async refreshToken() {
+    if (this.isRefreshing) {
+      return new Promise((resolve, reject) => {
+        this.failedQueue.push({ resolve, reject });
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const refreshToken = await AsyncStorage.getItem(
+        STORAGE_KEYS.REFRESH_TOKEN
+      );
+
+      if (!refreshToken) {
+        throw new Error('Refresh token n√£o encontrado');
+      }
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/auth/refresh`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        }
+      );
+
+      if (data.success) {
+        await this.saveAuthData(data.data);
+
+        // Processar fila de requisi√ß√µes falhadas
+        this.failedQueue.forEach(({ resolve }) => {
+          resolve(data.data.token);
+        });
+
+        this.failedQueue = [];
+        this.isRefreshing = false;
+
+        return {
+          success: true,
+          token: data.data.token,
+        };
+      } else {
+        throw new Error(data.message || 'Erro ao renovar token');
+      }
+    } catch (error) {
+      this.failedQueue.forEach(({ reject }) => {
+        reject(error);
+      });
+
+      this.failedQueue = [];
+      this.isRefreshing = false;
+
+      // Limpar dados se refresh falhar
+      await this.clearAuthData();
+
+      return {
+        success: false,
+        message: 'Sess√£o expirada. Fa√ßa login novamente.',
+      };
+    }
+  }
+
+  // Recuperar senha
+  async recoverPassword(email) {
+    try {
+      console.log('üîç Solicitando recupera√ß√£o de senha para:', email);
+
+      if (!this.validateEmail(email)) {
+        return {
+          success: false,
+          message: 'Email inv√°lido',
+        };
+      }
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/auth/forgot-password`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        }
+      );
+
+      if (data.success) {
+        console.log('‚úÖ Email de recupera√ß√£o enviado');
+        return {
+          success: true,
+          message: 'Email de recupera√ß√£o enviado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || 'Erro ao enviar email de recupera√ß√£o',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro na recupera√ß√£o de senha:', error);
+
+      let message = 'Erro de conex√£o com o servidor';
+      if (error.message.includes('HTTP 404')) {
+        message = 'Email n√£o encontrado';
+      }
+
+      return {
+        success: false,
+        message,
+      };
+    }
+  }
+
+  // Obter token salvo
+  async getToken() {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
     } catch (error) {
       console.error('Erro ao obter token:', error);
       return null;
     }
   }
 
-  /**
-   * Obter dados do usu·rio armazenados
-   * @returns {Promise<Object|null>} Dados do usu·rio ou null
-   */
-  static async getStoredUserData() {
+  // Obter usu√°rio salvo
+  async getUser() {
     try {
-      const userData = await AsyncStorage.getItem(this.USER_DATA_KEY);
-      return userData ? JSON.parse(userData) : null;
+      const userString = await AsyncStorage.getItem(STORAGE_KEYS.USER);
+      return userString ? JSON.parse(userString) : null;
     } catch (error) {
-      console.error('Erro ao obter dados do usu·rio:', error);
+      console.error('Erro ao obter usu√°rio:', error);
       return null;
     }
   }
 
-  /**
-   * Obter dados de autenticaÁ„o salvos
-   * @returns {Promise<Object>} Dados de autenticaÁ„o
-   */
-  static async getAuthData() {
+  // Obter dados completos de autentica√ß√£o
+  async getAuthData() {
     try {
-      const token = await SecureStorage.getAccessToken();
-      const refreshToken = await SecureStorage.getRefreshToken();
-      const userData = await SecureStorage.getUserData();
+      const [token, refreshToken, userString, lastLogin] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.TOKEN),
+        AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN),
+        AsyncStorage.getItem(STORAGE_KEYS.USER),
+        AsyncStorage.getItem(STORAGE_KEYS.LAST_LOGIN),
+      ]);
 
       return {
         token,
         refreshToken,
-        userData,
+        user: userString ? JSON.parse(userString) : null,
+        lastLogin: lastLogin ? new Date(lastLogin) : null,
       };
     } catch (error) {
-      console.error('Erro ao obter dados de autenticaÁ„o:', error);
+      console.error('Erro ao obter dados de autentica√ß√£o:', error);
       return {
         token: null,
         refreshToken: null,
-        userData: null,
+        user: null,
+        lastLogin: null,
       };
     }
   }
 
-  /**
-   * Salvar dados de autenticaÁ„o
-   * @param {string} token - Token de autenticaÁ„o
-   * @param {Object} userData - Dados do usu·rio
-   * @returns {Promise<void>}
-   */
-  static async saveAuthData(token, userData) {
+  // Limpar dados de autentica√ß√£o
+  async clearAuthData() {
     try {
-      await AsyncStorage.setItem(this.TOKEN_KEY, token);
-      await AsyncStorage.setItem(this.USER_DATA_KEY, JSON.stringify(userData));
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER,
+        STORAGE_KEYS.LAST_LOGIN,
+      ]);
+      return true;
     } catch (error) {
-      console.error('Erro ao salvar dados de autenticaÁ„o:', error);
-      throw error;
+      console.error('Erro ao limpar dados:', error);
+      return false;
     }
   }
 
-  /**
-   * Limpar dados de autenticaÁ„o
-   * @returns {Promise<void>}
-   */
-  static async clearAuthData() {
+  // Logout
+  async logout() {
     try {
-      await AsyncStorage.multiRemove([this.TOKEN_KEY, this.USER_DATA_KEY]);
+      const token = await this.getToken();
+
+      // Tentar notificar o servidor sobre o logout
+      if (token) {
+        try {
+          await this.makeRequest(`${API_CONFIG.BASE_URL}/api/auth/logout`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        } catch (error) {
+          console.log('Erro ao notificar logout no servidor:', error);
+          // N√£o falhar o logout local se o servidor n√£o responder
+        }
+      }
+
+      const cleared = await this.clearAuthData();
+
+      return {
+        success: cleared,
+        message: cleared
+          ? 'Logout realizado com sucesso'
+          : 'Erro ao fazer logout',
+      };
     } catch (error) {
-      console.error('Erro ao limpar dados de autenticaÁ„o:', error);
-      throw error;
+      console.error('Erro no logout:', error);
+      return {
+        success: false,
+        message: 'Erro ao fazer logout',
+      };
     }
   }
 
-  /**
-   * Atualizar dados do usu·rio no armazenamento local
-   * @param {Object} userData - Novos dados do usu·rio
-   * @returns {Promise<void>}
-   */
-  static async updateStoredUserData(userData) {
+  // Verificar se est√° logado
+  async isLoggedIn() {
     try {
-      await AsyncStorage.setItem(this.USER_DATA_KEY, JSON.stringify(userData));
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+      return !!token;
     } catch (error) {
-      console.error('Erro ao atualizar dados do usu·rio:', error);
-      throw error;
+      console.error('Erro ao verificar login:', error);
+      return false;
+    }
+  }
+
+  // Verificar se o token √© v√°lido (sem fazer requisi√ß√£o)
+  isTokenValid(token) {
+    if (!token) return false;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Date.now() / 1000;
+      return payload.exp > now;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Verificar status da sess√£o
+  async getSessionStatus() {
+    try {
+      const { token, user, lastLogin } = await this.getAuthData();
+
+      if (!token || !user) {
+        return {
+          isValid: false,
+          reason: 'N√£o autenticado',
+        };
+      }
+
+      if (!this.isTokenValid(token)) {
+        return {
+          isValid: false,
+          reason: 'Token expirado',
+          needsRefresh: true,
+        };
+      }
+
+      return {
+        isValid: true,
+        user,
+        lastLogin,
+      };
+    } catch (error) {
+      console.error('Erro ao verificar status da sess√£o:', error);
+      return {
+        isValid: false,
+        reason: 'Erro interno',
+      };
+    }
+  }
+
+  // Atualizar dados do usu√°rio
+  async updateUser(userData) {
+    try {
+      const token = await this.getToken();
+
+      if (!token) {
+        return {
+          success: false,
+          message: 'Usu√°rio n√£o autenticado',
+        };
+      }
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/users/me`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(userData),
+        }
+      );
+
+      if (data.success) {
+        // Atualizar dados locais
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify(data.data)
+        );
+
+        return {
+          success: true,
+          user: data.data,
+          message: 'Dados atualizados com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || 'Erro ao atualizar dados',
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar usu√°rio:', error);
+      return {
+        success: false,
+        message: 'Erro ao atualizar dados',
+      };
+    }
+  }
+
+  // Alterar senha
+  async changePassword(currentPassword, newPassword) {
+    try {
+      const token = await this.getToken();
+
+      if (!token) {
+        return {
+          success: false,
+          message: 'Usu√°rio n√£o autenticado',
+        };
+      }
+
+      if (!this.validatePassword(newPassword)) {
+        return {
+          success: false,
+          message: 'Nova senha deve ter pelo menos 6 caracteres',
+        };
+      }
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/users/password`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        }
+      );
+
+      if (data.success) {
+        return {
+          success: true,
+          message: 'Senha alterada com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || 'Erro ao alterar senha',
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao alterar senha:', error);
+      return {
+        success: false,
+        message: 'Erro ao alterar senha',
+      };
+    }
+  }
+
+  // Excluir conta
+  async deleteAccount() {
+    try {
+      const token = await this.getToken();
+
+      if (!token) {
+        return {
+          success: false,
+          message: 'Usu√°rio n√£o autenticado',
+        };
+      }
+
+      const data = await this.makeRequest(
+        `${API_CONFIG.BASE_URL}/api/users/me`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (data.success) {
+        // Limpar dados locais
+        await this.clearAuthData();
+
+        return {
+          success: true,
+          message: 'Conta exclu√≠da com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || 'Erro ao excluir conta',
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao excluir conta:', error);
+      return {
+        success: false,
+        message: 'Erro ao excluir conta',
+      };
     }
   }
 }
 
-export default AuthService;
+export default new AuthService();

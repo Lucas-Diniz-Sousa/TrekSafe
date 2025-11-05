@@ -49,7 +49,7 @@ class POIService {
   /**
    * Atualizar POI
    * @param {string} poiId - ID do POI
-   * @param {Object} updateData - Dados para atualização
+   * @param {Object} updateData - Dados para atualizaï¿½ï¿½o
    * @returns {Promise<Object>} Resposta da API
    */
   static async updatePOI(poiId, updateData) {
@@ -79,18 +79,11 @@ class POIService {
 
   /**
    * Criar dados de POI para a API
-   * @param {Object} poiInfo - Informações do POI
+   * @param {Object} poiInfo - Informaï¿½ï¿½es do POI
    * @returns {Object} Dados formatados para a API
    */
   static createPOIData(poiInfo) {
-    const {
-      trekId,
-      name,
-      lat,
-      lng,
-      description = '',
-      alt = null,
-    } = poiInfo;
+    const { trekId, name, lat, lng, description = '', alt = null } = poiInfo;
 
     return {
       trekId,
@@ -123,7 +116,7 @@ class POIService {
   }
 
   /**
-   * Formatar múltiplos POIs da API para o mapa
+   * Formatar mï¿½ltiplos POIs da API para o mapa
    * @param {Array} apiPOIs - Array de POIs da API
    * @returns {Array} Array de POIs formatados para o mapa
    */
@@ -133,42 +126,50 @@ class POIService {
 
   /**
    * Validar dados do POI
-   * @param {Object} poiData - Dados do POI para validação
-   * @returns {Object} Resultado da validação
+   * @param {Object} poiData - Dados do POI para validaï¿½ï¿½o
+   * @returns {Object} Resultado da validaï¿½ï¿½o
    */
   static validatePOIData(poiData) {
     const errors = [];
 
-    // Validar campos obrigatórios
+    // Validar campos obrigatï¿½rios
     if (!poiData.trekId) {
-      errors.push('ID da trilha é obrigatório');
+      errors.push('ID da trilha ï¿½ obrigatï¿½rio');
     }
 
     if (!poiData.name || poiData.name.trim().length === 0) {
-      errors.push('Nome do POI é obrigatório');
+      errors.push('Nome do POI ï¿½ obrigatï¿½rio');
     }
 
-    if (typeof poiData.lat !== 'number' || poiData.lat < -90 || poiData.lat > 90) {
-      errors.push('Latitude deve ser um número entre -90 e 90');
+    if (
+      typeof poiData.lat !== 'number' ||
+      poiData.lat < -90 ||
+      poiData.lat > 90
+    ) {
+      errors.push('Latitude deve ser um nï¿½mero entre -90 e 90');
     }
 
-    if (typeof poiData.lng !== 'number' || poiData.lng < -180 || poiData.lng > 180) {
-      errors.push('Longitude deve ser um número entre -180 e 180');
+    if (
+      typeof poiData.lng !== 'number' ||
+      poiData.lng < -180 ||
+      poiData.lng > 180
+    ) {
+      errors.push('Longitude deve ser um nï¿½mero entre -180 e 180');
     }
 
     // Validar campos opcionais
     if (poiData.alt !== null && poiData.alt !== undefined) {
       if (typeof poiData.alt !== 'number') {
-        errors.push('Altitude deve ser um número');
+        errors.push('Altitude deve ser um nï¿½mero');
       }
     }
 
     if (poiData.name && poiData.name.length > 100) {
-      errors.push('Nome do POI deve ter no máximo 100 caracteres');
+      errors.push('Nome do POI deve ter no mï¿½ximo 100 caracteres');
     }
 
     if (poiData.description && poiData.description.length > 500) {
-      errors.push('Descrição deve ter no máximo 500 caracteres');
+      errors.push('Descriï¿½ï¿½o deve ter no mï¿½ximo 500 caracteres');
     }
 
     return {
@@ -178,31 +179,34 @@ class POIService {
   }
 
   /**
-   * Calcular distância entre um ponto e um POI
-   * @param {Object} point - Ponto de referência {latitude, longitude}
+   * Calcular distï¿½ncia entre um ponto e um POI
+   * @param {Object} point - Ponto de referï¿½ncia {latitude, longitude}
    * @param {Object} poi - POI {lat, lng}
-   * @returns {number} Distância em metros
+   * @returns {number} Distï¿½ncia em metros
    */
   static calculateDistanceToPOI(point, poi) {
     const R = 6371e3; // Raio da Terra em metros
-    const ?1 = (point.latitude * Math.PI) / 180;
-    const ?2 = (poi.lat * Math.PI) / 180;
-    const ?? = ((poi.lat - point.latitude) * Math.PI) / 180;
-    const ?? = ((poi.lng - point.longitude) * Math.PI) / 180;
+    const lat1 = (point.latitude * Math.PI) / 180;
+    const lat2 = (poi.lat * Math.PI) / 180;
+    const deltaLat = ((poi.lat - point.latitude) * Math.PI) / 180;
+    const deltaLng = ((poi.lng - point.longitude) * Math.PI) / 180;
 
     const a =
-      Math.sin(?? / 2) * Math.sin(?? / 2) +
-      Math.cos(?1) * Math.cos(?2) * Math.sin(?? / 2) * Math.sin(?? / 2);
+      Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+      Math.cos(lat1) *
+        Math.cos(lat2) *
+        Math.sin(deltaLng / 2) *
+        Math.sin(deltaLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
   }
 
   /**
-   * Filtrar POIs por distância
+   * Filtrar POIs por distï¿½ncia
    * @param {Array} pois - Array de POIs
    * @param {Object} centerPoint - Ponto central {latitude, longitude}
-   * @param {number} maxDistance - Distância máxima em metros
+   * @param {number} maxDistance - Distï¿½ncia mï¿½xima em metros
    * @returns {Array} POIs filtrados
    */
   static filterPOIsByDistance(pois, centerPoint, maxDistance) {
@@ -213,10 +217,10 @@ class POIService {
   }
 
   /**
-   * Ordenar POIs por distância
+   * Ordenar POIs por distï¿½ncia
    * @param {Array} pois - Array de POIs
-   * @param {Object} referencePoint - Ponto de referência {latitude, longitude}
-   * @returns {Array} POIs ordenados por distância
+   * @param {Object} referencePoint - Ponto de referï¿½ncia {latitude, longitude}
+   * @returns {Array} POIs ordenados por distï¿½ncia
    */
   static sortPOIsByDistance(pois, referencePoint) {
     return pois.sort((a, b) => {
@@ -234,12 +238,12 @@ class POIService {
     return [
       { id: 'viewpoint', name: 'Mirante', icon: 'eye' },
       { id: 'waterfall', name: 'Cachoeira', icon: 'water' },
-      { id: 'rest_area', name: 'Área de Descanso', icon: 'seat' },
+      { id: 'rest_area', name: 'ï¿½rea de Descanso', icon: 'seat' },
       { id: 'camping', name: 'Camping', icon: 'tent' },
       { id: 'danger', name: 'Perigo', icon: 'alert-triangle' },
       { id: 'landmark', name: 'Marco', icon: 'map-pin' },
-      { id: 'food', name: 'Alimentação', icon: 'utensils' },
-      { id: 'water_source', name: 'Fonte de Água', icon: 'droplet' },
+      { id: 'food', name: 'Alimentaï¿½ï¿½o', icon: 'utensils' },
+      { id: 'water_source', name: 'Fonte de ï¿½gua', icon: 'droplet' },
       { id: 'shelter', name: 'Abrigo', icon: 'home' },
       { id: 'parking', name: 'Estacionamento', icon: 'car' },
     ];

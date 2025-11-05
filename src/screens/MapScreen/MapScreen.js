@@ -1,28 +1,34 @@
 // src/screens/MapScreen/MapScreen.js
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import Geolocation from '@react-native-community/geolocation';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
-  View,
-  Text,
   ActivityIndicator,
-  useColorScheme,
-  AppState,
   Alert,
+  AppState,
   Platform,
+  Text,
+  useColorScheme,
+  View,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
-import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
-import Geolocation from '@react-native-community/geolocation';
-import MapControls from '../../components/MapControls/MapControls'; 
-import { Colors, ColorUtils } from '../../theme/theme';
+import { PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { createStyles } from './MapScreen.styles';
+import MapControls from '../../components/MapControls/MapControls';
 import TrailsModal from '../../components/TrailsModal/TrialsModal';
 import { useAuth } from '../../contexts/AuthContext';
 import TrailService from '../../services/trailService';
+import { Colors, ColorUtils } from '../../theme/theme';
+import { createStyles } from './MapScreen.styles';
 
 const MapScreen = ({ navigation }) => {
   const { authState, user } = useAuth();
-  
+
   const initialRegion = {
     latitude: -19.916667,
     longitude: -43.933333,
@@ -31,32 +37,33 @@ const MapScreen = ({ navigation }) => {
   };
 
   const [region, setRegion] = useState(initialRegion);
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [locationPermissionGranted, setLocationPermissionGranted] =
+    useState(false);
   const [location, setLocation] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hasLocation, setHasLocation] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [mapKey, setMapKey] = useState(0);
-  
+
   // Estados para gravaÃ§Ã£o de trilha
   const [isRecording, setIsRecording] = useState(false);
   const [currentTrail, setCurrentTrail] = useState([]);
   const [savedTrails, setSavedTrails] = useState([]);
   const [currentTrailId, setCurrentTrailId] = useState(null);
   const [isSavingTrail, setIsSavingTrail] = useState(false);
-  
+
   // Estados para trilhas da API
   const [publicTrails, setPublicTrails] = useState([]);
   const [loadingTrails, setLoadingTrails] = useState(false);
-  
+
   // Estado para modal de trilhas
   const [showTrailsModal, setShowTrailsModal] = useState(false);
-  
+
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
   const styles = createStyles(isDarkMode);
-  
+
   const mapRef = useRef(null);
   const appState = useRef(AppState.currentState);
   const isUpdatingRegion = useRef(false);
@@ -70,208 +77,208 @@ const MapScreen = ({ navigation }) => {
     if (isDarkMode) {
       return [
         {
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapDarkBase}]
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapDarkBase }],
         },
         {
-          "elementType": "labels.icon",
-          "stylers": [{"visibility": "off"}]
+          elementType: 'labels.icon',
+          stylers: [{ visibility: 'off' }],
         },
         {
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "elementType": "labels.text.stroke",
-          "stylers": [{"color": Colors.mapDarkBase}]
+          elementType: 'labels.text.stroke',
+          stylers: [{ color: Colors.mapDarkBase }],
         },
         {
-          "featureType": "administrative",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapLandmarkDark}]
+          featureType: 'administrative',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapLandmarkDark }],
         },
         {
-          "featureType": "administrative.country",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'administrative.country',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "administrative.land_parcel",
-          "stylers": [{"visibility": "off"}]
+          featureType: 'administrative.land_parcel',
+          stylers: [{ visibility: 'off' }],
         },
         {
-          "featureType": "administrative.locality",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'administrative.locality',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "poi",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'poi',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.verdeFlorestaProfundo}]
+          featureType: 'poi.park',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.verdeFlorestaProfundo }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.verdeMusgo}]
+          featureType: 'poi.park',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.verdeMusgo }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "labels.text.stroke",
-          "stylers": [{"color": Colors.mapDarkBase}]
+          featureType: 'poi.park',
+          elementType: 'labels.text.stroke',
+          stylers: [{ color: Colors.mapDarkBase }],
         },
         {
-          "featureType": "road",
-          "elementType": "geometry.fill",
-          "stylers": [{"color": Colors.mapRoadDark}]
+          featureType: 'road',
+          elementType: 'geometry.fill',
+          stylers: [{ color: Colors.mapRoadDark }],
         },
         {
-          "featureType": "road",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'road',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "road.arterial",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadDark}]
+          featureType: 'road.arterial',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadDark }],
         },
         {
-          "featureType": "road.highway",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadDark}]
+          featureType: 'road.highway',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadDark }],
         },
         {
-          "featureType": "road.highway.controlled_access",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadDark}]
+          featureType: 'road.highway.controlled_access',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadDark }],
         },
         {
-          "featureType": "road.local",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'road.local',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "transit",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
+          featureType: 'transit',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
         },
         {
-          "featureType": "water",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapWaterDark}]
+          featureType: 'water',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapWaterDark }],
         },
         {
-          "featureType": "water",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextDark}]
-        }
+          featureType: 'water',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextDark }],
+        },
       ];
     } else {
       return [
         {
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapLightBase}]
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapLightBase }],
         },
         {
-          "elementType": "labels.icon",
-          "stylers": [{"visibility": "off"}]
+          elementType: 'labels.icon',
+          stylers: [{ visibility: 'off' }],
         },
         {
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "elementType": "labels.text.stroke",
-          "stylers": [{"color": Colors.mapLightBase}]
+          elementType: 'labels.text.stroke',
+          stylers: [{ color: Colors.mapLightBase }],
         },
         {
-          "featureType": "administrative",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapLandmarkLight}]
+          featureType: 'administrative',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapLandmarkLight }],
         },
         {
-          "featureType": "administrative.country",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'administrative.country',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "administrative.land_parcel",
-          "stylers": [{"visibility": "off"}]
+          featureType: 'administrative.land_parcel',
+          stylers: [{ visibility: 'off' }],
         },
         {
-          "featureType": "administrative.locality",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'administrative.locality',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "poi",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'poi',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.verdeMusgo}]
+          featureType: 'poi.park',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.verdeMusgo }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.verdeFlorestaProfundo}]
+          featureType: 'poi.park',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.verdeFlorestaProfundo }],
         },
         {
-          "featureType": "poi.park",
-          "elementType": "labels.text.stroke",
-          "stylers": [{"color": Colors.mapLightBase}]
+          featureType: 'poi.park',
+          elementType: 'labels.text.stroke',
+          stylers: [{ color: Colors.mapLightBase }],
         },
         {
-          "featureType": "road",
-          "elementType": "geometry.fill",
-          "stylers": [{"color": Colors.mapRoadLight}]
+          featureType: 'road',
+          elementType: 'geometry.fill',
+          stylers: [{ color: Colors.mapRoadLight }],
         },
         {
-          "featureType": "road",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'road',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "road.arterial",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadLight}]
+          featureType: 'road.arterial',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadLight }],
         },
         {
-          "featureType": "road.highway",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadLight}]
+          featureType: 'road.highway',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadLight }],
         },
         {
-          "featureType": "road.highway.controlled_access",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapRoadLight}]
+          featureType: 'road.highway.controlled_access',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapRoadLight }],
         },
         {
-          "featureType": "road.local",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'road.local',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "transit",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
+          featureType: 'transit',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
         },
         {
-          "featureType": "water",
-          "elementType": "geometry",
-          "stylers": [{"color": Colors.mapWaterLight}]
+          featureType: 'water',
+          elementType: 'geometry',
+          stylers: [{ color: Colors.mapWaterLight }],
         },
         {
-          "featureType": "water",
-          "elementType": "labels.text.fill",
-          "stylers": [{"color": Colors.mapTextLight}]
-        }
+          featureType: 'water',
+          elementType: 'labels.text.fill',
+          stylers: [{ color: Colors.mapTextLight }],
+        },
       ];
     }
   }, [isDarkMode]);
@@ -282,11 +289,13 @@ const MapScreen = ({ navigation }) => {
       setError(null);
 
       let permissionResult;
-      
+
       if (Platform.OS === 'ios') {
         permissionResult = await request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
       } else {
-        permissionResult = await request(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+        permissionResult = await request(
+          PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION
+        );
       }
 
       if (permissionResult === RESULTS.GRANTED) {
@@ -341,7 +350,7 @@ const MapScreen = ({ navigation }) => {
         setHasLocation(true);
         setError(null);
         setLoading(false);
-        
+
         setMapKey(prev => prev + 1);
       },
       error => {
@@ -373,54 +382,65 @@ const MapScreen = ({ navigation }) => {
         setRegion(defaultRegion);
         setMapKey(prev => prev + 1);
       },
-      locationOptions,
+      locationOptions
     );
   }, [locationPermissionGranted]);
 
   // FunÃ§Ã£o para calcular distÃ¢ncia entre pontos
-  const calculateDistance = useCallback((points) => {
+  const calculateDistance = useCallback(points => {
     if (points.length < 2) return 0;
-    
+
     let distance = 0;
     for (let i = 1; i < points.length; i++) {
       const prev = points[i - 1];
       const curr = points[i];
-      
+
       const R = 6371; // Raio da Terra em km
-      const dLat = (curr.latitude - prev.latitude) * Math.PI / 180;
-      const dLon = (curr.longitude - prev.longitude) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(prev.latitude * Math.PI / 180) * Math.cos(curr.latitude * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const dLat = ((curr.latitude - prev.latitude) * Math.PI) / 180;
+      const dLon = ((curr.longitude - prev.longitude) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((prev.latitude * Math.PI) / 180) *
+          Math.cos((curr.latitude * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       distance += R * c;
     }
-    
+
     return distance;
   }, []);
 
-  // Funções para gravação de trilha
+  // Funï¿½ï¿½es para gravaï¿½ï¿½o de trilha
   const startRecording = useCallback(async () => {
     if (!locationPermissionGranted) {
-      Alert.alert('Erro', 'Permissão de localização necessária para gravar trilha.');
+      Alert.alert(
+        'Erro',
+        'Permissï¿½o de localizaï¿½ï¿½o necessï¿½ria para gravar trilha.'
+      );
       return;
     }
 
-    console.log('Iniciando gravação de trilha');
+    console.log('Iniciando gravaï¿½ï¿½o de trilha');
     setIsRecording(true);
     setCurrentTrail([]);
     setCurrentTrailId(null);
 
-    // Se usuário estiver autenticado, criar trilha na API
+    // Se usuï¿½rio estiver autenticado, criar trilha na API
     if (authState === 'AUTHENTICATED' && user) {
       try {
         const trailData = {
-          name: `Trilha ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+          name: `Trilha ${new Date().toLocaleDateString(
+            'pt-BR'
+          )} ${new Date().toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`,
           description: 'Trilha gravada automaticamente',
           difficulty: 'medium',
           isPublic: false,
         };
-        
+
         const createdTrail = await TrailService.createTrail(trailData);
         setCurrentTrailId(createdTrail.id);
         console.log('Trilha criada na API:', createdTrail.id);
@@ -441,7 +461,7 @@ const MapScreen = ({ navigation }) => {
       async position => {
         const { latitude, longitude } = position.coords;
         const newPoint = { latitude, longitude };
-        
+
         console.log('Novo ponto da trilha:', newPoint);
         setCurrentTrail(prev => [...prev, newPoint]);
         setLocation(newPoint);
@@ -455,21 +475,21 @@ const MapScreen = ({ navigation }) => {
               timestamp: new Date().toISOString(),
             });
           } catch (error) {
-            console.warn('Erro ao adicionar coordenada à trilha:', error);
+            console.warn('Erro ao adicionar coordenada ï¿½ trilha:', error);
             // Continua gravando localmente
           }
         }
       },
       error => {
-        console.warn('Erro ao rastrear posição:', error);
-        setError('Erro ao rastrear posição durante gravação.');
+        console.warn('Erro ao rastrear posiï¿½ï¿½o:', error);
+        setError('Erro ao rastrear posiï¿½ï¿½o durante gravaï¿½ï¿½o.');
       },
       watchOptions
     );
   }, [locationPermissionGranted, authState, user, currentTrailId]);
 
   const stopRecording = useCallback(async () => {
-    console.log('Parando gravação de trilha');
+    console.log('Parando gravaï¿½ï¿½o de trilha');
     setIsRecording(false);
     setIsSavingTrail(true);
 
@@ -486,14 +506,19 @@ const MapScreen = ({ navigation }) => {
         points: [...currentTrail],
         distance,
         visible: true,
-        name: `Trilha ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+        name: `Trilha ${new Date().toLocaleDateString(
+          'pt-BR'
+        )} ${new Date().toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`,
         apiId: currentTrailId,
       };
 
       // Se tiver trilha na API, finalizar
       if (currentTrailId && authState === 'AUTHENTICATED') {
         try {
-          const duration = Math.round(distance / 4 * 60); // Estimativa: 4km/h = 1 minuto por 67m
+          const duration = Math.round((distance / 4) * 60); // Estimativa: 4km/h = 1 minuto por 67m
           await TrailService.updateTrail(currentTrailId, {
             status: 'completed',
             totalDistance: distance,
@@ -505,11 +530,13 @@ const MapScreen = ({ navigation }) => {
           console.warn('Erro ao finalizar trilha na API:', error);
         }
       }
-      
+
       setSavedTrails(prev => [...prev, newTrail]);
       Alert.alert(
-        'Trilha Salva', 
-        `Trilha gravada com ${currentTrail.length} pontos e ${distance.toFixed(2)}km de distância.${currentTrailId ? ' Sincronizada com a nuvem.' : ''}`
+        'Trilha Salva',
+        `Trilha gravada com ${currentTrail.length} pontos e ${distance.toFixed(
+          2
+        )}km de distï¿½ncia.${currentTrailId ? ' Sincronizada com a nuvem.' : ''}`
       );
     }
 
@@ -526,13 +553,13 @@ const MapScreen = ({ navigation }) => {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  // Função para carregar trilhas públicas da API
+  // Funï¿½ï¿½o para carregar trilhas pï¿½blicas da API
   const loadPublicTrails = useCallback(async () => {
     if (!isMapReady || loadingTrails) return;
 
     setLoadingTrails(true);
     try {
-      // Calcular área baseada na região atual do mapa
+      // Calcular ï¿½rea baseada na regiï¿½o atual do mapa
       const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
       const area = {
         northEast: {
@@ -547,15 +574,15 @@ const MapScreen = ({ navigation }) => {
 
       const trails = await TrailService.searchTrailsByArea(area);
       setPublicTrails(trails);
-      console.log(`Carregadas ${trails.length} trilhas públicas da região`);
+      console.log(`Carregadas ${trails.length} trilhas pï¿½blicas da regiï¿½o`);
     } catch (error) {
-      console.warn('Erro ao carregar trilhas públicas:', error);
+      console.warn('Erro ao carregar trilhas pï¿½blicas:', error);
     } finally {
       setLoadingTrails(false);
     }
   }, [region, isMapReady, loadingTrails]);
 
-  // Carregar trilhas quando a região mudar (com debounce)
+  // Carregar trilhas quando a regiï¿½o mudar (com debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       loadPublicTrails();
@@ -566,35 +593,32 @@ const MapScreen = ({ navigation }) => {
 
   // Novas funÃ§Ãµes para gerenciar trilhas
   const handleUpdateTrail = useCallback((trailId, updates) => {
-    setSavedTrails(prev => 
-      prev.map(trail => 
-        trail.id === trailId 
-          ? { ...trail, ...updates }
-          : trail
+    setSavedTrails(prev =>
+      prev.map(trail =>
+        trail.id === trailId ? { ...trail, ...updates } : trail
       )
     );
   }, []);
 
-  const handleDeleteTrail = useCallback((trailId) => {
+  const handleDeleteTrail = useCallback(trailId => {
     setSavedTrails(prev => prev.filter(trail => trail.id !== trailId));
   }, []);
 
   const handleToggleTrailVisibility = useCallback((trailId, visible) => {
-    setSavedTrails(prev => 
-      prev.map(trail => 
-        trail.id === trailId 
-          ? { ...trail, visible }
-          : trail
-      )
+    setSavedTrails(prev =>
+      prev.map(trail => (trail.id === trailId ? { ...trail, visible } : trail))
     );
   }, []);
 
   // FunÃ§Ã£o modificada para navegar para login
   const handleLogin = useCallback(() => {
     if (navigation) {
-      navigation.navigate('Login');
+      navigation.navigate('LoginScreen');
     } else {
-      Alert.alert('Login', 'Funcionalidade de login serÃ¡ implementada em breve.');
+      Alert.alert(
+        'Login',
+        'Funcionalidade de login serÃ¡ implementada em breve.'
+      );
     }
   }, [navigation]);
 
@@ -607,36 +631,39 @@ const MapScreen = ({ navigation }) => {
     setIsMapReady(true);
   }, []);
 
-  const handleRegionChangeComplete = useCallback((newRegion) => {
+  const handleRegionChangeComplete = useCallback(newRegion => {
     if (!isUpdatingRegion.current) {
       console.log('RegiÃ£o atualizada pelo usuÃ¡rio:', newRegion);
       setRegion(newRegion);
     }
   }, []);
 
-  const updateRegion = useCallback((newRegion, animated = true) => {
-    console.log('Atualizando regiÃ£o para:', newRegion);
-    isUpdatingRegion.current = true;
-    
-    setRegion(newRegion);
-    
-    if (mapRef.current && isMapReady) {
-      try {
-        if (animated) {
-          mapRef.current.animateToRegion(newRegion, 500);
-        } else {
-          mapRef.current.setRegion(newRegion);
+  const updateRegion = useCallback(
+    (newRegion, animated = true) => {
+      console.log('Atualizando regiÃ£o para:', newRegion);
+      isUpdatingRegion.current = true;
+
+      setRegion(newRegion);
+
+      if (mapRef.current && isMapReady) {
+        try {
+          if (animated) {
+            mapRef.current.animateToRegion(newRegion, 500);
+          } else {
+            mapRef.current.setRegion(newRegion);
+          }
+        } catch (error) {
+          console.warn('Erro ao atualizar regiÃ£o do mapa:', error);
+          setMapKey(prev => prev + 1);
         }
-      } catch (error) {
-        console.warn('Erro ao atualizar regiÃ£o do mapa:', error);
-        setMapKey(prev => prev + 1);
       }
-    }
-    
-    setTimeout(() => {
-      isUpdatingRegion.current = false;
-    }, 600);
-  }, [isMapReady]);
+
+      setTimeout(() => {
+        isUpdatingRegion.current = false;
+      }, 600);
+    },
+    [isMapReady]
+  );
 
   const centerOnUser = useCallback(() => {
     if (location && isMapReady) {
@@ -646,7 +673,7 @@ const MapScreen = ({ navigation }) => {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
-      
+
       console.log('Centralizando no usuÃ¡rio:', newRegion);
       updateRegion(newRegion);
     }
@@ -659,7 +686,7 @@ const MapScreen = ({ navigation }) => {
         latitudeDelta: Math.max(region.latitudeDelta / 2, 0.0005),
         longitudeDelta: Math.max(region.longitudeDelta / 2, 0.0005),
       };
-      
+
       console.log('Zoom in para:', newRegion);
       updateRegion(newRegion);
     }
@@ -672,15 +699,15 @@ const MapScreen = ({ navigation }) => {
         latitudeDelta: Math.min(region.latitudeDelta * 2, 10),
         longitudeDelta: Math.min(region.longitudeDelta * 2, 10),
       };
-      
+
       console.log('Zoom out para:', newRegion);
       updateRegion(newRegion);
     }
   }, [region, isMapReady, updateRegion]);
 
   // Filtrar trilhas visÃ­veis para exibir no mapa
-  const visibleTrails = useMemo(() => 
-    savedTrails.filter(trail => trail.visible !== false),
+  const visibleTrails = useMemo(
+    () => savedTrails.filter(trail => trail.visible !== false),
     [savedTrails]
   );
 
@@ -695,28 +722,39 @@ const MapScreen = ({ navigation }) => {
 
   // Gerenciamento do ciclo de vida do app
   useEffect(() => {
-    const handleAppStateChange = (nextAppState) => {
+    const handleAppStateChange = nextAppState => {
       console.log('App state mudou:', appState.current, '->', nextAppState);
-      
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
         console.log('App voltou para foreground');
         if (mapRef.current && region && isMapReady) {
           setTimeout(() => {
-            console.log('ForÃ§ando atualizaÃ§Ã£o do mapa apÃ³s voltar do background');
+            console.log(
+              'ForÃ§ando atualizaÃ§Ã£o do mapa apÃ³s voltar do background'
+            );
             setMapKey(prev => prev + 1);
             try {
               mapRef.current.animateToRegion(region, 100);
             } catch (error) {
-              console.warn('Erro ao animar regiÃ£o apÃ³s voltar do background:', error);
+              console.warn(
+                'Erro ao animar regiÃ£o apÃ³s voltar do background:',
+                error
+              );
             }
           }, 100);
         }
       }
-      
+
       appState.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
 
     return () => {
       subscription?.remove();
@@ -731,7 +769,7 @@ const MapScreen = ({ navigation }) => {
   useEffect(() => {
     if (locationPermissionGranted) {
       console.log(
-        'useEffect: PermissÃ£o concedida, obtendo localizaÃ§Ã£o atual...',
+        'useEffect: PermissÃ£o concedida, obtendo localizaÃ§Ã£o atual...'
       );
       getCurrentLocation();
     }
@@ -744,13 +782,15 @@ const MapScreen = ({ navigation }) => {
   if (loading && !isMapReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator 
-          size="large" 
-          color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+        <ActivityIndicator
+          size="large"
+          color={ColorUtils.getThemeColor(
+            Colors.verdeFlorestaProfundo,
+            Colors.douradoNobre,
+            isDarkMode
+          )}
         />
-        <Text style={styles.loadingText}>
-          Carregando mapa...
-        </Text>
+        <Text style={styles.loadingText}>Carregando mapa...</Text>
       </View>
     );
   }
@@ -767,8 +807,16 @@ const MapScreen = ({ navigation }) => {
         loadingEnabled={true}
         showsUserLocation={false}
         followsUserLocation={false}
-        loadingIndicatorColor={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)}
-        loadingBackgroundColor={ColorUtils.getThemeColor(Colors.backgroundPrimary, Colors.backgroundPrimaryDark, isDarkMode)}
+        loadingIndicatorColor={ColorUtils.getThemeColor(
+          Colors.verdeFlorestaProfundo,
+          Colors.douradoNobre,
+          isDarkMode
+        )}
+        loadingBackgroundColor={ColorUtils.getThemeColor(
+          Colors.backgroundPrimary,
+          Colors.backgroundPrimaryDark,
+          isDarkMode
+        )}
         showsCompass={false}
         zoomEnabled={true}
         zoomControlEnabled={false}
@@ -805,48 +853,64 @@ const MapScreen = ({ navigation }) => {
             </View>
           </Marker>
         )}
-        
+
         {/* Trilha atual sendo gravada */}
         {isRecording && currentTrail.length > 1 && (
           <Polyline
             coordinates={currentTrail}
-            strokeColor={ColorUtils.getThemeColor(Colors.trailActive, Colors.douradoNobre, isDarkMode)} 
+            strokeColor={ColorUtils.getThemeColor(
+              Colors.trailActive,
+              Colors.douradoNobre,
+              isDarkMode
+            )}
             strokeWidth={4}
             lineDashPattern={[5, 5]}
           />
         )}
-        
-        {/* Trilhas salvas (apenas as visíveis) */}
-        {visibleTrails.map((trail) => (
+
+        {/* Trilhas salvas (apenas as visï¿½veis) */}
+        {visibleTrails.map(trail => (
           <Polyline
             key={trail.id}
             coordinates={trail.points}
-            strokeColor={ColorUtils.getThemeColor(Colors.trailSaved, Colors.verdeMusgo, isDarkMode)} 
+            strokeColor={ColorUtils.getThemeColor(
+              Colors.trailSaved,
+              Colors.verdeMusgo,
+              isDarkMode
+            )}
             strokeWidth={3}
           />
         ))}
 
-        {/* Trilhas públicas da API */}
-        {publicTrails.map((trail) => (
+        {/* Trilhas pï¿½blicas da API */}
+        {publicTrails.map(trail => (
           <Polyline
             key={`public-${trail.id}`}
             coordinates={trail.coordinates || []}
-            strokeColor={ColorUtils.getThemeColor(Colors.blue500, Colors.blue400, isDarkMode)} 
+            strokeColor={ColorUtils.getThemeColor(
+              Colors.blue500,
+              Colors.blue400,
+              isDarkMode
+            )}
             strokeWidth={2}
             strokeOpacity={0.7}
           />
         ))}
-        
+
         <Marker
           coordinate={{
             latitude: -19.921,
             longitude: -43.938,
           }}
           title="Mirante da Serra"
-          description="Ã?tima vista da cidade!"
+          description="ï¿½?tima vista da cidade!"
         >
           <View style={styles.markerContainer}>
-            <Icon name="terrain" size={20} color={Colors.verdeFlorestaProfundo} />
+            <Icon
+              name="terrain"
+              size={20}
+              color={Colors.verdeFlorestaProfundo}
+            />
           </View>
         </Marker>
       </MapView>
@@ -885,18 +949,26 @@ const MapScreen = ({ navigation }) => {
 
       {loading && isMapReady && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator 
-            size="large" 
-            color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+          <ActivityIndicator
+            size="large"
+            color={ColorUtils.getThemeColor(
+              Colors.verdeFlorestaProfundo,
+              Colors.douradoNobre,
+              isDarkMode
+            )}
           />
         </View>
       )}
 
       {isSavingTrail && (
         <View style={styles.savingOverlay}>
-          <ActivityIndicator 
-            size="large" 
-            color={ColorUtils.getThemeColor(Colors.verdeFlorestaProfundo, Colors.douradoNobre, isDarkMode)} 
+          <ActivityIndicator
+            size="large"
+            color={ColorUtils.getThemeColor(
+              Colors.verdeFlorestaProfundo,
+              Colors.douradoNobre,
+              isDarkMode
+            )}
           />
           <Text style={styles.savingText}>Salvando trilha...</Text>
         </View>
@@ -904,9 +976,7 @@ const MapScreen = ({ navigation }) => {
 
       {error && (
         <View style={styles.overlayError}>
-          <Text style={styles.overlayErrorText}>
-            {error}
-          </Text>
+          <Text style={styles.overlayErrorText}>{error}</Text>
         </View>
       )}
     </View>

@@ -1,13 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
-
 /**
- * Serviço de armazenamento seguro para tokens e dados sensíveis
+ * Serviï¿½o de armazenamento seguro para tokens e dados sensï¿½veis
  */
 class SecureStorage {
   // Chaves para armazenamento
   static KEYS = {
     ACCESS_TOKEN: 'access_token',
+    TOKEN_KEY: 'authToken',
+    USER_DATA_KEY: 'userData',
     REFRESH_TOKEN: 'refresh_token',
     USER_DATA: 'user_data',
     API_BASE_URL: 'api_base_url',
@@ -25,13 +26,17 @@ class SecureStorage {
         'access_token',
         token,
         {
-          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
+          accessControl:
+            Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
           authenticatePrompt: 'Autentique-se para acessar o token',
           service: 'TrekSafe',
         }
       );
     } catch (error) {
-      console.warn('Erro ao salvar token de acesso no Keychain, usando AsyncStorage:', error);
+      console.warn(
+        'Erro ao salvar token de acesso no Keychain, usando AsyncStorage:',
+        error
+      );
       await AsyncStorage.setItem(this.KEYS.ACCESS_TOKEN, token);
     }
   }
@@ -42,12 +47,17 @@ class SecureStorage {
    */
   static async getAccessToken() {
     try {
-      const credentials = await Keychain.getInternetCredentials(this.KEYS.ACCESS_TOKEN);
+      const credentials = await Keychain.getInternetCredentials(
+        this.KEYS.ACCESS_TOKEN
+      );
       if (credentials && credentials.password) {
         return credentials.password;
       }
     } catch (error) {
-      console.warn('Erro ao recuperar token do Keychain, tentando AsyncStorage:', error);
+      console.warn(
+        'Erro ao recuperar token do Keychain, tentando AsyncStorage:',
+        error
+      );
     }
 
     // Fallback para AsyncStorage
@@ -70,13 +80,17 @@ class SecureStorage {
         'refresh_token',
         token,
         {
-          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
+          accessControl:
+            Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
           authenticatePrompt: 'Autentique-se para acessar o token de refresh',
           service: 'TrekSafe',
         }
       );
     } catch (error) {
-      console.warn('Erro ao salvar refresh token no Keychain, usando AsyncStorage:', error);
+      console.warn(
+        'Erro ao salvar refresh token no Keychain, usando AsyncStorage:',
+        error
+      );
       await AsyncStorage.setItem(this.KEYS.REFRESH_TOKEN, token);
     }
   }
@@ -87,12 +101,17 @@ class SecureStorage {
    */
   static async getRefreshToken() {
     try {
-      const credentials = await Keychain.getInternetCredentials(this.KEYS.REFRESH_TOKEN);
+      const credentials = await Keychain.getInternetCredentials(
+        this.KEYS.REFRESH_TOKEN
+      );
       if (credentials && credentials.password) {
         return credentials.password;
       }
     } catch (error) {
-      console.warn('Erro ao recuperar refresh token do Keychain, tentando AsyncStorage:', error);
+      console.warn(
+        'Erro ao recuperar refresh token do Keychain, tentando AsyncStorage:',
+        error
+      );
     }
 
     // Fallback para AsyncStorage
@@ -105,29 +124,29 @@ class SecureStorage {
   }
 
   /**
-   * Armazena dados do usuário
-   * @param {Object} userData - Dados do usuário
+   * Armazena dados do usuï¿½rio
+   * @param {Object} userData - Dados do usuï¿½rio
    */
   static async setUserData(userData) {
     try {
       const userDataString = JSON.stringify(userData);
       await AsyncStorage.setItem(this.KEYS.USER_DATA, userDataString);
     } catch (error) {
-      console.error('Erro ao salvar dados do usuário:', error);
+      console.error('Erro ao salvar dados do usuï¿½rio:', error);
       throw error;
     }
   }
 
   /**
-   * Recupera dados do usuário
-   * @returns {Promise<Object|null>} Dados do usuário ou null
+   * Recupera dados do usuï¿½rio
+   * @returns {Promise<Object|null>} Dados do usuï¿½rio ou null
    */
   static async getUserData() {
     try {
       const userDataString = await AsyncStorage.getItem(this.KEYS.USER_DATA);
       return userDataString ? JSON.parse(userDataString) : null;
     } catch (error) {
-      console.error('Erro ao recuperar dados do usuário:', error);
+      console.error('Erro ao recuperar dados do usuï¿½rio:', error);
       return null;
     }
   }
@@ -159,8 +178,8 @@ class SecureStorage {
   }
 
   /**
-   * Verifica se a autenticação biométrica está habilitada
-   * @returns {Promise<boolean>} True se habilitada, false caso contrário
+   * Verifica se a autenticaï¿½ï¿½o biomï¿½trica estï¿½ habilitada
+   * @returns {Promise<boolean>} True se habilitada, false caso contrï¿½rio
    */
   static async isBiometricEnabled() {
     try {
@@ -173,12 +192,15 @@ class SecureStorage {
   }
 
   /**
-   * Define se a autenticação biométrica está habilitada
+   * Define se a autenticaï¿½ï¿½o biomï¿½trica estï¿½ habilitada
    * @param {boolean} enabled - True para habilitar, false para desabilitar
    */
   static async setBiometricEnabled(enabled) {
     try {
-      await AsyncStorage.setItem(this.KEYS.BIOMETRIC_ENABLED, enabled.toString());
+      await AsyncStorage.setItem(
+        this.KEYS.BIOMETRIC_ENABLED,
+        enabled.toString()
+      );
     } catch (error) {
       console.error('Erro ao definir status da biometria:', error);
       throw error;
@@ -186,8 +208,8 @@ class SecureStorage {
   }
 
   /**
-   * Verifica se a biometria está disponível no dispositivo
-   * @returns {Promise<boolean>} True se disponível, false caso contrário
+   * Verifica se a biometria estï¿½ disponï¿½vel no dispositivo
+   * @returns {Promise<boolean>} True se disponï¿½vel, false caso contrï¿½rio
    */
   static async isBiometricAvailable() {
     try {
@@ -200,7 +222,7 @@ class SecureStorage {
   }
 
   /**
-   * Obtém o tipo de biometria suportada
+   * Obtï¿½m o tipo de biometria suportada
    * @returns {Promise<string|null>} Tipo de biometria ou null
    */
   static async getBiometryType() {
@@ -213,7 +235,7 @@ class SecureStorage {
   }
 
   /**
-   * Remove todos os tokens e dados de autenticação
+   * Remove todos os tokens e dados de autenticaï¿½ï¿½o
    */
   static async clearAuthData() {
     try {
@@ -230,7 +252,7 @@ class SecureStorage {
         AsyncStorage.removeItem(this.KEYS.USER_DATA),
       ]);
     } catch (error) {
-      console.error('Erro ao limpar dados de autenticação:', error);
+      console.error('Erro ao limpar dados de autenticaï¿½ï¿½o:', error);
       throw error;
     }
   }
@@ -252,21 +274,21 @@ class SecureStorage {
   }
 
   /**
-   * Verifica se o usuário está autenticado (possui tokens válidos)
-   * @returns {Promise<boolean>} True se autenticado, false caso contrário
+   * Verifica se o usuï¿½rio estï¿½ autenticado (possui tokens vï¿½lidos)
+   * @returns {Promise<boolean>} True se autenticado, false caso contrï¿½rio
    */
   static async isAuthenticated() {
     try {
       const accessToken = await this.getAccessToken();
       return !!accessToken;
     } catch (error) {
-      console.error('Erro ao verificar autenticação:', error);
+      console.error('Erro ao verificar autenticaï¿½ï¿½o:', error);
       return false;
     }
   }
 
   /**
-   * Armazena tokens de autenticação
+   * Armazena tokens de autenticaï¿½ï¿½o
    * @param {string} accessToken - Token de acesso
    * @param {string} refreshToken - Token de refresh (opcional)
    */

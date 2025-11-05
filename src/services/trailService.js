@@ -17,7 +17,7 @@ class TrailService {
   }
 
   /**
-   * Adicionar coordenadas à trilha
+   * Adicionar coordenadas ï¿½ trilha
    * @param {string} trekId - ID da trilha
    * @param {Array} coords - Array de coordenadas
    * @returns {Promise<Object>} Resposta da API
@@ -35,15 +35,15 @@ class TrailService {
   }
 
   /**
-   * Buscar trilhas por bounding box (área do mapa)
-   * @param {Object} boundingBox - Coordenadas da área
+   * Buscar trilhas por bounding box (ï¿½rea do mapa)
+   * @param {Object} boundingBox - Coordenadas da ï¿½rea
    * @param {boolean} includePois - Incluir POIs nas trilhas
    * @returns {Promise<Object>} Resposta da API com trilhas encontradas
    */
   static async searchTrailsByArea(boundingBox, includePois = false) {
     try {
       const { minLat, maxLat, minLng, maxLng } = boundingBox;
-      
+
       const params = {
         minLat,
         maxLat,
@@ -55,7 +55,7 @@ class TrailService {
       const response = await apiService.get('/api/treks/search', params);
       return response;
     } catch (error) {
-      console.error('Erro ao buscar trilhas por área:', error);
+      console.error('Erro ao buscar trilhas por ï¿½rea:', error);
       throw error;
     }
   }
@@ -85,7 +85,7 @@ class TrailService {
   /**
    * Atualizar trilha
    * @param {string} trekId - ID da trilha
-   * @param {Object} updateData - Dados para atualização
+   * @param {Object} updateData - Dados para atualizaï¿½ï¿½o
    * @returns {Promise<Object>} Resposta da API
    */
   static async updateTrail(trekId, updateData) {
@@ -100,7 +100,7 @@ class TrailService {
 
   /**
    * Listar minhas trilhas
-   * @returns {Promise<Object>} Resposta da API com trilhas do usuário
+   * @returns {Promise<Object>} Resposta da API com trilhas do usuï¿½rio
    */
   static async getMyTrails() {
     try {
@@ -113,13 +113,13 @@ class TrailService {
   }
 
   /**
-   * Calcular bounding box baseado na região atual do mapa
-   * @param {Object} region - Região do mapa
+   * Calcular bounding box baseado na regiï¿½o atual do mapa
+   * @param {Object} region - Regiï¿½o do mapa
    * @returns {Object} Bounding box calculado
    */
   static calculateBoundingBox(region) {
     const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
-    
+
     return {
       minLat: latitude - latitudeDelta / 2,
       maxLat: latitude + latitudeDelta / 2,
@@ -129,7 +129,7 @@ class TrailService {
   }
 
   /**
-   * Formatar coordenadas para envio à API
+   * Formatar coordenadas para envio ï¿½ API
    * @param {Array} coordinates - Array de coordenadas do mapa
    * @returns {Array} Coordenadas formatadas para a API
    */
@@ -157,7 +157,7 @@ class TrailService {
 
   /**
    * Criar dados de trilha para a API
-   * @param {Object} trailInfo - Informações da trilha
+   * @param {Object} trailInfo - Informaï¿½ï¿½es da trilha
    * @returns {Object} Dados formatados para a API
    */
   static createTrailData(trailInfo) {
@@ -189,15 +189,15 @@ class TrailService {
   }
 
   /**
-   * Calcular distância total da trilha
+   * Calcular distï¿½ncia total da trilha
    * @param {Array} coordinates - Array de coordenadas
-   * @returns {number} Distância total em metros
+   * @returns {number} Distï¿½ncia total em metros
    */
   static calculateTotalDistance(coordinates) {
     if (coordinates.length < 2) return 0;
 
     let totalDistance = 0;
-    
+
     for (let i = 1; i < coordinates.length; i++) {
       const distance = this.calculateDistance(
         coordinates[i - 1],
@@ -210,31 +210,31 @@ class TrailService {
   }
 
   /**
-   * Calcular distância entre dois pontos (fórmula de Haversine)
+   * Calcular distï¿½ncia entre dois pontos (fï¿½rmula de Haversine)
    * @param {Object} point1 - Primeiro ponto {latitude, longitude}
    * @param {Object} point2 - Segundo ponto {latitude, longitude}
-   * @returns {number} Distância em metros
+   * @returns {number} Distï¿½ncia em metros
    */
   static calculateDistance(point1, point2) {
     const R = 6371e3; // Raio da Terra em metros
-    const ?1 = (point1.latitude * Math.PI) / 180;
-    const ?2 = (point2.latitude * Math.PI) / 180;
-    const ?? = ((point2.latitude - point1.latitude) * Math.PI) / 180;
-    const ?? = ((point2.longitude - point1.longitude) * Math.PI) / 180;
+    const lat1 = (point1.latitude * Math.PI) / 180;
+    const lat2 = (point2.latitude * Math.PI) / 180;
+    const dLat = ((point2.latitude - point1.latitude) * Math.PI) / 180;
+    const dLng = ((point2.longitude - point1.longitude) * Math.PI) / 180;
 
     const a =
-      Math.sin(?? / 2) * Math.sin(?? / 2) +
-      Math.cos(?1) * Math.cos(?2) * Math.sin(?? / 2) * Math.sin(?? / 2);
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
   }
 
   /**
-   * Calcular duração da trilha
-   * @param {Date} startTime - Hora de início
+   * Calcular duraï¿½ï¿½o da trilha
+   * @param {Date} startTime - Hora de inï¿½cio
    * @param {Date} endTime - Hora de fim
-   * @returns {number} Duração em segundos
+   * @returns {number} Duraï¿½ï¿½o em segundos
    */
   static calculateDuration(startTime, endTime) {
     return Math.floor((endTime.getTime() - startTime.getTime()) / 1000);

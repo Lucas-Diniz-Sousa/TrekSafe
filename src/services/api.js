@@ -1,144 +1,744 @@
-import axios from 'axios';
-import SecureStorage from './secureStorage';
+// services/api.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// URL base da API - substitua pela URL real do seu servidor
-const API_BASE_URL = 'https://api.treksafe.com'; // ou 'http://localhost:3000' para desenvolvimento
+const API_CONFIG = {
+  BASE_URL: 'http://192.168.18.13:3001',
+  TIMEOUT: 10000,
+};
 
-// Criar inst‚ncia do axios
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+class ApiService {
+  constructor() {
+    this.baseURL = API_CONFIG.BASE_URL;
+  }
 
-// Interceptador de requisiÁ„o para adicionar token de autenticaÁ„o
-api.interceptors.request.use(
-  async config => {
+  // Obter token do AsyncStorage
+  async getAuthToken() {
     try {
-      const token = await SecureStorage.getAccessToken();
+      return await AsyncStorage.getItem('token');
+    } catch (error) {
+      console.error('Erro ao obter token:', error);
+      return null;
+    }
+  }
+
+  // Fazer requisi√ß√£o com autentica√ß√£o autom√°tica
+  async makeRequest(endpoint, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+    try {
+      const token = await this.getAuthToken();
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+
+      // Adicionar token se dispon√≠vel
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        ...options,
+        signal: controller.signal,
+        headers,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  // M√©todos HTTP b√°sicos
+  async get(endpoint, options = {}) {
+    return this.makeRequest(endpoint, {
+      method: 'GET',
+      ...options,
+    });
+  }
+
+  async post(endpoint, data = {}, options = {}) {
+    return this.makeRequest(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      ...options,
+    });
+  }
+
+  async put(endpoint, data = {}, options = {}) {
+    return this.makeRequest(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      ...options,
+    });
+  }
+
+  async delete(endpoint, options = {}) {
+    return this.makeRequest(endpoint, {
+      method: 'DELETE',
+      ...options,
+    });
+  }
+
+  // M√©todos espec√≠ficos para trilhas - COM TRATAMENTO DE LISTAS VAZIAS
+  async getTrilhasPorArea(latitude, longitude, raio = 10) {
+    try {
+      const params = new URLSearchParams({
+        lat: latitude.toString(),
+        lng: longitude.toString(),
+        radius: raio.toString(),
+      });
+
+      const response = await this.get(`/api/treks/area?${params}`);
+
+      // Tratar resposta vazia como sucesso
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.count || 0,
+        message:
+          response.message ||
+          (response.data?.length > 0
+            ? `${response.data.length} trilhas encontradas`
+            : 'Nenhuma trilha encontrada nesta √°rea'),
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao buscar trilhas por √°rea:', error.message);
+
+      // Retornar lista vazia em vez de erro
+      return {
+        success: true,
+        data: [],
+        count: 0,
+        message: 'N√£o foi poss√≠vel carregar trilhas no momento',
+      };
+    }
+  }
+
+  async getTrilhasPublicas(limit = 50, offset = 0) {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await this.get(`/api/treks/public?${params}`);
+
+      // Tratar resposta vazia como sucesso
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.count || 0,
+        message:
+          response.message ||
+          (response.data?.length > 0
+            ? `${response.data.length} trilhas p√∫blicas encontradas`
+            : 'Nenhuma trilha p√∫blica dispon√≠vel'),
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao carregar trilhas p√∫blicas:', error.message);
+
+      // Retornar lista vazia em vez de erro
+      return {
+        success: true,
+        data: [],
+        count: 0,
+        message: 'N√£o foi poss√≠vel carregar trilhas no momento',
+      };
+    }
+  }
+
+  async getTrilhaDetalhes(trilhaId) {
+    try {
+      const response = await this.get(`/api/treks/${trilhaId}`);
+
+      if (response.success && response.data) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Trilha carregada com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: 'Trilha n√£o encontrada',
+        };
       }
     } catch (error) {
-      console.error('Erro ao recuperar token de autenticaÁ„o:', error);
+      console.error('‚ùå Erro ao carregar detalhes da trilha:', error);
+      return {
+        success: false,
+        data: null,
+        message: 'Erro ao carregar detalhes da trilha',
+      };
     }
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
   }
-);
 
-// Interceptador de resposta para tratar erros globalmente
-api.interceptors.response.use(
-  response => {
-    return response;
-  },
-  async error => {
-    const originalRequest = error.config;
+  async criarTrilha(dadosTrilha) {
+    try {
+      const response = await this.post('/api/treks', dadosTrilha);
 
-    // Se o erro for 401 (n„o autorizado) e n„o for uma tentativa de retry
-    if (error.response?.status === 401) {
-        try {
-          // Remove tokens inv·lidos
-          await SecureStorage.clearAuthData();
-
-          // Aqui vocÍ pode redirecionar para a tela de login
-          // ou emitir um evento para o contexto de autenticaÁ„o
-          console.log('Token expirado, usu·rio deslogado');
-        } catch (storageError) {
-          console.error('Erro ao limpar dados de autenticaÁ„o:', storageError);
-        }
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Trilha criada com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao criar trilha',
+        };
       }
+    } catch (error) {
+      console.error('‚ùå Erro ao criar trilha:', error);
+      return {
+        success: false,
+        message: 'Erro ao criar trilha',
+      };
     }
-
-    return Promise.reject(error);
   }
-);
 
-// FunÁ„o para definir a URL base (˙til para alternar entre desenvolvimento e produÁ„o)
-export const setApiBaseUrl = url => {
-  api.defaults.baseURL = url;
-};
+  async salvarPontoTrilha(trilhaId, ponto) {
+    try {
+      const response = await this.post(`/api/treks/${trilhaId}/points`, ponto);
 
-// FunÁ„o para fazer requisiÁıes GET
-export const get = async (endpoint, params = {}) => {
-  try {
-    const response = await api.get(endpoint, { params });
-    return response.data;
-  } catch (error) {
-    throw handleApiError(error);
-  }
-};
-
-// FunÁ„o para fazer requisiÁıes POST
-export const post = async (endpoint, data = {}) => {
-  try {
-    const response = await api.post(endpoint, data);
-    return response.data;
-  } catch (error) {
-    throw handleApiError(error);
-  }
-};
-
-// FunÁ„o para fazer requisiÁıes PUT
-export const put = async (endpoint, data = {}) => {
-  try {
-    const response = await api.put(endpoint, data);
-    return response.data;
-  } catch (error) {
-    throw handleApiError(error);
-  }
-};
-
-// FunÁ„o para fazer requisiÁıes DELETE
-export const del = async endpoint => {
-  try {
-    const response = await api.delete(endpoint);
-    return response.data;
-  } catch (error) {
-    throw handleApiError(error);
-  }
-};
-
-// FunÁ„o para tratar erros da API
-const handleApiError = error => {
-  if (error.response) {
-    // O servidor respondeu com um status de erro
-    const { status, data } = error.response;
-
-    switch (status) {
-      case 400:
-        return new Error(data.message || 'Dados inv·lidos');
-      case 401:
-        return new Error('N„o autorizado. FaÁa login novamente.');
-      case 403:
-        return new Error('Acesso negado');
-      case 404:
-        return new Error('Recurso n„o encontrado');
-      case 500:
-        return new Error('Erro interno do servidor');
-      default:
-        return new Error(data.message || 'Erro desconhecido');
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Ponto salvo com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao salvar ponto',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao salvar ponto da trilha:', error);
+      return {
+        success: false,
+        message: 'Erro ao salvar ponto da trilha',
+      };
     }
-  } else if (error.request) {
-    // A requisiÁ„o foi feita mas n„o houve resposta
-    return new Error('Erro de conex„o. Verifique sua internet.');
-  } else {
-    // Algo aconteceu na configuraÁ„o da requisiÁ„o
-    return new Error('Erro na requisiÁ„o: ' + error.message);
   }
-};
 
-// Exportar a inst‚ncia do axios para casos especiais
-export { api };
+  async atualizarTrilha(trilhaId, dadosAtualizacao) {
+    try {
+      const response = await this.put(
+        `/api/treks/${trilhaId}`,
+        dadosAtualizacao
+      );
 
-export default {
-  get,
-  post,
-  put,
-  delete: del,
-  setApiBaseUrl,
-};
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Trilha atualizada com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao atualizar trilha',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao atualizar trilha:', error);
+      return {
+        success: false,
+        message: 'Erro ao atualizar trilha',
+      };
+    }
+  }
+
+  async deletarTrilha(trilhaId) {
+    try {
+      const response = await this.delete(`/api/treks/${trilhaId}`);
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'Trilha exclu√≠da com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao excluir trilha',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao excluir trilha:', error);
+      return {
+        success: false,
+        message: 'Erro ao excluir trilha',
+      };
+    }
+  }
+
+  async getMinhasTrilhas() {
+    try {
+      const response = await this.get('/api/treks/mine');
+
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.count || 0,
+        message:
+          response.message ||
+          (response.data?.length > 0
+            ? `${response.data.length} trilhas suas encontradas`
+            : 'Voc√™ ainda n√£o criou nenhuma trilha'),
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao carregar minhas trilhas:', error.message);
+
+      return {
+        success: true,
+        data: [],
+        count: 0,
+        message: 'N√£o foi poss√≠vel carregar suas trilhas no momento',
+      };
+    }
+  }
+
+  // M√©todos para POIs - COM TRATAMENTO DE LISTAS VAZIAS
+  async getPOIsPorArea(latitude, longitude, raio = 10) {
+    try {
+      const params = new URLSearchParams({
+        lat: latitude.toString(),
+        lng: longitude.toString(),
+        radius: raio.toString(),
+      });
+
+      const response = await this.get(`/api/pois/area?${params}`);
+
+      // Tratar resposta vazia como sucesso
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.count || 0,
+        message:
+          response.message ||
+          (response.data?.length > 0
+            ? `${response.data.length} POIs encontrados`
+            : 'Nenhum POI encontrado nesta √°rea'),
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao buscar POIs por √°rea:', error.message);
+
+      // Retornar lista vazia em vez de erro
+      return {
+        success: true,
+        data: [],
+        count: 0,
+        message: 'N√£o foi poss√≠vel carregar POIs no momento',
+      };
+    }
+  }
+
+  async criarPOI(dadosPOI) {
+    try {
+      const response = await this.post('/api/pois', dadosPOI);
+
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'POI criado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao criar POI',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao criar POI:', error);
+      return {
+        success: false,
+        message: 'Erro ao criar POI',
+      };
+    }
+  }
+
+  async getPOIDetalhes(poiId) {
+    try {
+      const response = await this.get(`/api/pois/${poiId}`);
+
+      if (response.success && response.data) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'POI carregado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: 'POI n√£o encontrado',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao carregar POI:', error);
+      return {
+        success: false,
+        data: null,
+        message: 'Erro ao carregar POI',
+      };
+    }
+  }
+
+  async atualizarPOI(poiId, dadosAtualizacao) {
+    try {
+      const response = await this.put(`/api/pois/${poiId}`, dadosAtualizacao);
+
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'POI atualizado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao atualizar POI',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao atualizar POI:', error);
+      return {
+        success: false,
+        message: 'Erro ao atualizar POI',
+      };
+    }
+  }
+
+  async deletarPOI(poiId) {
+    try {
+      const response = await this.delete(`/api/pois/${poiId}`);
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'POI exclu√≠do com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao excluir POI',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao excluir POI:', error);
+      return {
+        success: false,
+        message: 'Erro ao excluir POI',
+      };
+    }
+  }
+
+  // M√©todos para favoritos - COM TRATAMENTO DE LISTAS VAZIAS
+  async getFavoritos() {
+    try {
+      const response = await this.get('/api/favorites');
+
+      // Tratar resposta vazia como sucesso
+      return {
+        success: true,
+        data: response.data || [],
+        count: response.count || 0,
+        message:
+          response.message ||
+          (response.data?.length > 0
+            ? `${response.data.length} favoritos encontrados`
+            : 'Nenhum favorito salvo'),
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao carregar favoritos:', error.message);
+
+      // Retornar lista vazia em vez de erro
+      return {
+        success: true,
+        data: [],
+        count: 0,
+        message: 'N√£o foi poss√≠vel carregar favoritos no momento',
+      };
+    }
+  }
+
+  async adicionarFavorito(trilhaId) {
+    try {
+      const response = await this.post('/api/favorites', { trekId: trilhaId });
+
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Trilha adicionada aos favoritos',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao adicionar favorito',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao adicionar favorito:', error);
+      return {
+        success: false,
+        message: 'Erro ao adicionar favorito',
+      };
+    }
+  }
+
+  async removerFavorito(favoritoId) {
+    try {
+      const response = await this.delete(`/api/favorites/${favoritoId}`);
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'Favorito removido com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao remover favorito',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao remover favorito:', error);
+      return {
+        success: false,
+        message: 'Erro ao remover favorito',
+      };
+    }
+  }
+
+  async verificarFavorito(trilhaId) {
+    try {
+      const response = await this.get(`/api/favorites/check/${trilhaId}`);
+
+      return {
+        success: true,
+        isFavorite: response.isFavorite || false,
+        favoriteId: response.favoriteId || null,
+      };
+    } catch (error) {
+      console.warn('‚ö†Ô∏è Erro ao verificar favorito:', error.message);
+      return {
+        success: false,
+        isFavorite: false,
+        favoriteId: null,
+      };
+    }
+  }
+
+  // M√©todos para usu√°rio
+  async getDadosUsuario() {
+    try {
+      const response = await this.get('/api/users/me');
+
+      if (response.success && response.data) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Dados do usu√°rio carregados',
+        };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: 'Erro ao carregar dados do usu√°rio',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao carregar dados do usu√°rio:', error);
+      return {
+        success: false,
+        data: null,
+        message: 'Erro ao carregar dados do usu√°rio',
+      };
+    }
+  }
+
+  async atualizarUsuario(dadosUsuario) {
+    try {
+      const response = await this.put('/api/users/me', dadosUsuario);
+
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data,
+          message: 'Perfil atualizado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao atualizar perfil',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao atualizar usu√°rio:', error);
+      return {
+        success: false,
+        message: 'Erro ao atualizar perfil',
+      };
+    }
+  }
+
+  async alterarSenha(senhaAtual, novaSenha) {
+    try {
+      const response = await this.put('/api/users/password', {
+        currentPassword: senhaAtual,
+        newPassword: novaSenha,
+      });
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'Senha alterada com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao alterar senha',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao alterar senha:', error);
+      return {
+        success: false,
+        message: 'Erro ao alterar senha',
+      };
+    }
+  }
+
+  async excluirConta() {
+    try {
+      const response = await this.delete('/api/users/me');
+
+      if (response.success) {
+        return {
+          success: true,
+          message: 'Conta exclu√≠da com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Erro ao excluir conta',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro ao excluir conta:', error);
+      return {
+        success: false,
+        message: 'Erro ao excluir conta',
+      };
+    }
+  }
+
+  // Health check e utilit√°rios
+  async healthCheck() {
+    try {
+      const response = await this.get('/api/health');
+
+      return {
+        success: true,
+        data: response,
+        message: 'API funcionando normalmente',
+      };
+    } catch (error) {
+      console.error('‚ùå Erro no health check:', error);
+      return {
+        success: false,
+        message: 'API indispon√≠vel no momento',
+      };
+    }
+  }
+
+  async testarConexao() {
+    try {
+      const startTime = Date.now();
+      await this.healthCheck();
+      const endTime = Date.now();
+      const latency = endTime - startTime;
+
+      return {
+        success: true,
+        latency,
+        message: `Conex√£o OK (${latency}ms)`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        latency: null,
+        message: 'Falha na conex√£o',
+      };
+    }
+  }
+
+  // M√©todo para upload de arquivos (se necess√°rio)
+  async uploadFile(endpoint, file, additionalData = {}) {
+    try {
+      const token = await this.getAuthToken();
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Adicionar dados extras
+      Object.keys(additionalData).forEach(key => {
+        formData.append(key, additionalData[key]);
+      });
+
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        return {
+          success: true,
+          data: result.data,
+          message: 'Arquivo enviado com sucesso',
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message || 'Erro ao enviar arquivo',
+        };
+      }
+    } catch (error) {
+      console.error('‚ùå Erro no upload:', error);
+      return {
+        success: false,
+        message: 'Erro ao enviar arquivo',
+      };
+    }
+  }
+}
+
+export default new ApiService();

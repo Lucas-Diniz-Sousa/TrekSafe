@@ -1,14 +1,15 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import AuthService from '../services/authService';
+import SecureStorage from '../services/secureStorage';
 
-// Estados possíveis da autenticação
+// Estados possÃ­veis da autenticaÃ§Ã£o
 const AUTH_STATES = {
   LOADING: 'loading',
   AUTHENTICATED: 'authenticated',
   UNAUTHENTICATED: 'unauthenticated',
 };
 
-// Ações do reducer
+// AÃ§Ãµes do reducer
 const AUTH_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_AUTHENTICATED: 'SET_AUTHENTICATED',
@@ -24,7 +25,7 @@ const initialState = {
   isAuthenticated: false,
 };
 
-// Reducer para gerenciar o estado de autenticação
+// Reducer para gerenciar o estado de autenticaÃ§Ã£o
 const authReducer = (state, action) => {
   switch (action.type) {
     case AUTH_ACTIONS.SET_LOADING:
@@ -65,46 +66,46 @@ const authReducer = (state, action) => {
 // Criar o contexto
 const AuthContext = createContext();
 
-// Provider do contexto de autenticação
+// Provider do contexto de autenticaÃ§Ã£o
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Verificar autenticação ao inicializar
+  // Verificar autenticaÃ§Ã£o ao inicializar
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
   /**
-   * Verificar status de autenticação
+   * Verificar status de autenticaÃ§Ã£o
    */
   const checkAuthStatus = async () => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING });
 
-      const token = await AuthService.getToken();
-      const userData = await AuthService.getStoredUserData();
+      const token = await SecureStorage.getAccessToken();
+      const userData = await SecureStorage.getUserData();
 
       if (token && userData) {
-        // Verificar se o token ainda é válido fazendo uma requisição
+        // Verificar se o token ainda Ã© vÃ¡lido fazendo uma requisiÃ§Ã£o
         try {
           const currentUser = await AuthService.getCurrentUser();
           dispatch({
             type: AUTH_ACTIONS.SET_AUTHENTICATED,
             payload: {
-              user: currentUser,
+              user: currentUser || userData,
               token,
             },
           });
         } catch (error) {
-          // Token inválido, limpar dados
-          await AuthService.clearAuthData();
+          // Token invÃ¡lido, limpar dados
+          await SecureStorage.clearAuthData();
           dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
         }
       } else {
         dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
       }
     } catch (error) {
-      console.error('Erro ao verificar status de autenticação:', error);
+      console.error('Erro ao verificar status de autenticaÃ§Ã£o:', error);
       dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
     }
   };
@@ -117,16 +118,13 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING });
 
       const response = await AuthService.login(email, password);
-      
-      if (response.success) {
-        const userData = await AuthService.getStoredUserData();
-        const token = await AuthService.getToken();
 
+      if (response.success) {
         dispatch({
           type: AUTH_ACTIONS.SET_AUTHENTICATED,
           payload: {
-            user: userData,
-            token,
+            user: response.user,
+            token: response.token,
           },
         });
 
@@ -137,9 +135,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-      return { 
-        success: false, 
-        message: error.message || 'Erro ao fazer login' 
+      return {
+        success: false,
+        message: error.message || 'Erro ao fazer login',
       };
     }
   };
@@ -147,34 +145,38 @@ export const AuthProvider = ({ children }) => {
   /**
    * Fazer registro
    */
-  const register = async (userData) => {
+  const register = async userData => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING });
 
-      const response = await AuthService.register(userData);
-      
-      if (response.success) {
-        const storedUserData = await AuthService.getStoredUserData();
-        const token = await AuthService.getToken();
+      const response = await AuthService.register(
+        userData.name,
+        userData.email,
+        userData.password
+      );
 
+      if (response.success) {
         dispatch({
           type: AUTH_ACTIONS.SET_AUTHENTICATED,
           payload: {
-            user: storedUserData,
-            token,
+            user: response.user,
+            token: response.token,
           },
         });
 
         return { success: true };
       } else {
         dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-        return { success: false, message: response.message || 'Erro no registro' };
+        return {
+          success: false,
+          message: response.message || 'Erro no registro',
+        };
       }
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-      return { 
-        success: false, 
-        message: error.message || 'Erro ao fazer registro' 
+      return {
+        success: false,
+        message: error.message || 'Erro ao fazer registro',
       };
     }
   };
@@ -196,19 +198,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Solicitar recuperação de senha
+   * Solicitar recuperaÃ§Ã£o de senha
    */
-  const forgotPassword = async (email) => {
+  const forgotPassword = async email => {
     try {
-      const response = await AuthService.forgotPassword(email);
-      return { 
-        success: response.success, 
-        message: response.message || 'Email de recuperação enviado' 
+      const response = await AuthService.recoverPassword(email);
+      return {
+        success: response.success,
+        message: response.message || 'Email de recuperaÃ§Ã£o enviado',
       };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.message || 'Erro ao solicitar recuperação de senha' 
+      return {
+        success: false,
+        message: error.message || 'Erro ao solicitar recuperaÃ§Ã£o de senha',
       };
     }
   };
@@ -221,10 +223,10 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING });
 
       const response = await AuthService.resetPassword(resetToken, newPassword);
-      
+
       if (response.success) {
-        const userData = await AuthService.getStoredUserData();
-        const token = await AuthService.getToken();
+        const userData = await SecureStorage.getUserData();
+        const token = await SecureStorage.getAccessToken();
 
         dispatch({
           type: AUTH_ACTIONS.SET_AUTHENTICATED,
@@ -237,25 +239,28 @@ export const AuthProvider = ({ children }) => {
         return { success: true, message: 'Senha alterada com sucesso' };
       } else {
         dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-        return { success: false, message: response.message || 'Erro ao redefinir senha' };
+        return {
+          success: false,
+          message: response.message || 'Erro ao redefinir senha',
+        };
       }
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-      return { 
-        success: false, 
-        message: error.message || 'Erro ao redefinir senha' 
+      return {
+        success: false,
+        message: error.message || 'Erro ao redefinir senha',
       };
     }
   };
 
   /**
-   * Atualizar dados do usuário
+   * Atualizar dados do usuÃ¡rio
    */
-  const updateUser = async (userData) => {
+  const updateUser = async userData => {
     try {
       // Atualizar no armazenamento local
-      await AuthService.updateStoredUserData(userData);
-      
+      await SecureStorage.setUserData({ ...state.user, ...userData });
+
       // Atualizar no estado
       dispatch({
         type: AUTH_ACTIONS.UPDATE_USER,
@@ -264,10 +269,10 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
-      return { 
-        success: false, 
-        message: error.message || 'Erro ao atualizar dados do usuário' 
+      console.error('Erro ao atualizar usuÃ¡rio:', error);
+      return {
+        success: false,
+        message: error.message || 'Erro ao atualizar dados do usuÃ¡rio',
       };
     }
   };
@@ -276,8 +281,8 @@ export const AuthProvider = ({ children }) => {
   const value = {
     // Estado
     ...state,
-    
-    // Ações
+
+    // AÃ§Ãµes
     login,
     register,
     logout,
@@ -285,27 +290,23 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     updateUser,
     checkAuthStatus,
-    
-    // Estados úteis
+
+    // Estados Ãºteis
     isLoading: state.status === AUTH_STATES.LOADING,
     isAuthenticated: state.isAuthenticated,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook para usar o contexto de autenticação
+// Hook para usar o contexto de autenticaÃ§Ã£o
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
-  
+
   return context;
 };
 
