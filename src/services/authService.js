@@ -27,9 +27,6 @@ class AuthService {
   delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   // Utilitário para validar email
-  // services/authService.js - LINHA 28-32, SUBSTITUIR:
-
-  // Utilitário para validar email
   validateEmail = email => {
     // Regex corrigida (sem escape duplo no frontend)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -45,28 +42,63 @@ class AuthService {
 
   // Fazer requisição com retry e timeout
   async makeRequest(url, options = {}, retryCount = 0) {
+    console.log('\n🌐 === FAZENDO REQUISIÇÃO NO APP ===');
+    console.log('📍 URL:', url);
+    console.log('⚙️ Method:', options.method);
+    console.log('📦 Body:', options.body);
+    console.log('🔄 Retry count:', retryCount);
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Timeout atingido após', API_CONFIG.TIMEOUT, 'ms');
+      controller.abort();
+    }, API_CONFIG.TIMEOUT);
 
     try {
-      const response = await fetch(url, {
+      console.log('📤 Executando fetch...');
+
+      const fetchOptions = {
         ...options,
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
         },
-      });
+      };
+
+      console.log(
+        '📋 Fetch options completas:',
+        JSON.stringify(fetchOptions, null, 2)
+      );
+
+      const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
 
+      console.log('📥 Resposta recebida:');
+      console.log('- Status:', response.status);
+      console.log('- StatusText:', response.statusText);
+      console.log('- OK:', response.ok);
+      console.log('- URL:', response.url);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log('❌ Response error text:', errorText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('📊 Data parsed com sucesso:', data);
+      console.log('🌐 === REQUISIÇÃO CONCLUÍDA COM SUCESSO ===\n');
+
+      return data;
     } catch (error) {
       clearTimeout(timeoutId);
+
+      console.error('💥 Erro na requisição do app:');
+      console.error('- Name:', error.name);
+      console.error('- Message:', error.message);
+      console.error('- Stack:', error.stack);
 
       // Retry em caso de erro de rede
       if (
@@ -74,12 +106,15 @@ class AuthService {
         (error.name === 'AbortError' || error.message.includes('fetch'))
       ) {
         console.log(
-          `Tentativa ${retryCount + 1} falhou, tentando novamente...`
+          `🔄 Tentativa ${retryCount + 1} falhou, tentando novamente em ${
+            API_CONFIG.RETRY_DELAY * (retryCount + 1)
+          }ms...`
         );
         await this.delay(API_CONFIG.RETRY_DELAY * (retryCount + 1));
         return this.makeRequest(url, options, retryCount + 1);
       }
 
+      console.log('🌐 === REQUISIÇÃO FALHOU ===\n');
       throw error;
     }
   }
@@ -111,10 +146,36 @@ class AuthService {
   }
 
   // Registrar usuário
-  async register(nome, email, senha) {
+  async register(name, email, password) {
+    console.log('\n🚀 === INICIANDO REGISTRO NO APP ===');
+    console.log('📝 Parâmetros recebidos:');
+    console.log(
+      '- name:',
+      JSON.stringify(name),
+      '| type:',
+      typeof name,
+      '| length:',
+      name?.length
+    );
+    console.log('- email:', JSON.stringify(email), '| type:', typeof email);
+    console.log(
+      '- password:',
+      password ? '***' : 'undefined',
+      '| type:',
+      typeof password,
+      '| length:',
+      password?.length
+    );
+    console.log('🔧 API_CONFIG.BASE_URL:', API_CONFIG.BASE_URL);
+
     try {
       // Validações locais
-      if (!nome || nome.trim().length < 2) {
+      console.log('🔍 Iniciando validações locais...');
+
+      if (!name || name.trim().length < 2) {
+        console.log('❌ Validação local falhou - nome muito curto');
+        console.log('- name após trim:', JSON.stringify(name?.trim()));
+        console.log('- length após trim:', name?.trim()?.length);
         return {
           success: false,
           message: 'Nome deve ter pelo menos 2 caracteres',
@@ -122,50 +183,48 @@ class AuthService {
       }
 
       if (!this.validateEmail(email)) {
+        console.log('❌ Validação local falhou - email inválido');
         return {
           success: false,
           message: 'Email inválido',
         };
       }
 
-      if (!this.validatePassword(senha)) {
+      if (!this.validatePassword(password)) {
+        console.log('❌ Validação local falhou - senha inválida');
         return {
           success: false,
           message: 'Senha deve ter pelo menos 6 caracteres',
         };
       }
 
-      console.log('🔍 Tentando registrar usuário:', {
-        nome,
-        email: email,
-        senha: '***',
-      });
-      console.log(
-        '🌐 URL da API:',
-        `${API_CONFIG.BASE_URL}/api/users/register`
-      );
+      console.log('✅ Todas as validações locais passaram');
 
       const requestBody = {
-        name: nome.trim(),
+        name: name.trim(),
         email: email.toLowerCase().trim(),
-        password: senha,
+        password: password,
       };
 
-      console.log('📤 Enviando dados:', {
-        name: requestBody.name,
-        email: requestBody.email,
-        password: '***',
-      });
+      console.log('📤 RequestBody criado:');
+      console.log('- name:', JSON.stringify(requestBody.name));
+      console.log('- email:', JSON.stringify(requestBody.email));
+      console.log('- password:', requestBody.password ? '***' : 'undefined');
 
-      const data = await this.makeRequest(
-        `${API_CONFIG.BASE_URL}/api/users/register`,
-        {
-          method: 'POST',
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const url = `${API_CONFIG.BASE_URL}/api/users/register`;
+      console.log('🌐 URL completa:', url);
 
-      console.log('📥 Resposta da API:', data);
+      const options = {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      };
+
+      console.log('⚙️ Options:', JSON.stringify(options, null, 2));
+      console.log('📤 Chamando makeRequest...');
+
+      const data = await this.makeRequest(url, options);
+
+      console.log('📥 Resposta da API recebida:', data);
 
       if (data.success) {
         const saved = await this.saveAuthData(data.data);
@@ -177,7 +236,7 @@ class AuthService {
           };
         }
 
-        console.log('✅ Registro bem-sucedido');
+        console.log('✅ Registro bem-sucedido no app');
         return {
           success: true,
           user: data.data.user,
@@ -193,7 +252,7 @@ class AuthService {
         };
       }
     } catch (error) {
-      console.error('💥 Erro completo no registro:', error);
+      console.error('💥 Erro completo no registro do app:', error);
       console.error('💥 Stack trace:', error.stack);
 
       let message = 'Erro de conexão com o servidor';
@@ -213,9 +272,9 @@ class AuthService {
   }
 
   // Login usuário
-  async login(email, senha) {
+  async login(email, password) {
     try {
-      console.log('🔍 Tentando login com:', { email, senha: '***' });
+      console.log('🔍 Tentando login com:', { email, password: '***' });
       console.log('🌐 URL da API:', `${API_CONFIG.BASE_URL}/api/auth/login`);
 
       // Validações
@@ -227,7 +286,7 @@ class AuthService {
         };
       }
 
-      if (!senha || senha.length === 0) {
+      if (!password || password.length === 0) {
         console.log('❌ Senha vazia');
         return {
           success: false,
@@ -237,7 +296,7 @@ class AuthService {
 
       const requestBody = {
         email: email.toLowerCase().trim(),
-        password: senha,
+        password: password,
       };
 
       console.log('📤 Enviando dados:', {

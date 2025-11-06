@@ -52,6 +52,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   };
 
   const validateName = name => {
+    console.log('Nome dessa merda', name);
     return name.trim().length >= 2;
   };
 
@@ -159,8 +160,8 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
     }
   };
 
-  // Handle Register
   // Handle Register - VERSÃO COM DEBUG
+  // Handle Register - VERSÃO CORRIGIDA
   const handleRegister = async () => {
     console.log('🔍 Iniciando processo de registro...');
     console.log('📝 Dados do formulário:', {
@@ -184,26 +185,41 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
 
     try {
       console.log('📞 Chamando função register...');
-      const result = await register(name, email, password);
+
+      // ✅ CORREÇÃO: Passar como objeto userData
+      const result = await register({
+        name: name.trim(),
+        email: email.trim(),
+        password: password,
+      });
+
       console.log('📥 Resultado do registro:', result);
 
-      Alert.alert(
-        'Conta criada!',
-        'Sua conta foi criada com sucesso. Bem-vindo ao TrekSafe!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              console.log('✅ Navegando para Map...');
-              if (onLoginSuccess) {
-                onLoginSuccess();
-              } else if (navigation) {
-                navigation.navigate('Map');
-              }
+      if (result.success) {
+        Alert.alert(
+          'Conta criada!',
+          'Sua conta foi criada com sucesso. Bem-vindo ao TrekSafe!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('✅ Navegando para Map...');
+                if (onLoginSuccess) {
+                  onLoginSuccess();
+                } else if (navigation) {
+                  navigation.navigate('Map');
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Erro no registro',
+          result.message || 'Erro ao criar conta. Tente novamente.',
+          [{ text: 'OK' }]
+        );
+      }
     } catch (error) {
       console.error('💥 Erro completo no registro:', error);
       console.error('💥 Stack trace:', error.stack);
@@ -218,6 +234,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
   // Handle principal (login ou registro)
   const handleSubmit = () => {
     if (isRegisterMode) {
