@@ -1,10 +1,10 @@
 # 🗺️ TrekSafe
 
-Um aplicativo de mapas React Native moderno e intuitivo com suporte a modo escuro automático e controles de navegação avançados.
+Um aplicativo de trilhas e navegação em React Native, com mapa interativo, gravação/gestão de trilhas, POIs, exportação, autenticação e tema escuro automático.
 
 ## 📱 Sobre o App
 
-TrekSafe é um aplicativo de mapas desenvolvido em React Native que oferece uma experiência de navegação fluida e moderna. Com integração ao Google Maps, detecção automática de localização e interface adaptativa, é perfeito para explorar e navegar por qualquer região.
+TrekSafe oferece navegação fluida com `react-native-maps`, grava trilhas com detalhes (pontos, distância, duração), permite criar/editar POIs, exporta trilhas (GPX/JSON/TXT) e sincroniza dados via API quando autenticado. O app acompanha o tema do sistema (claro/escuro) e traz controles intuitivos para zoom, centralização e gerenciamento de trilhas.
 
 ## ✨ Funcionalidades
 
@@ -43,6 +43,31 @@ TrekSafe é um aplicativo de mapas desenvolvido em React Native que oferece uma 
 - Configurações otimizadas para Android/iOS
 - Carregamento rápido
 
+### 🧭 **Gravação e Gestão de Trilhas**
+
+- Início/pausa/finalização de gravação.
+- Polilinha ao vivo no mapa com pontos.
+- Edição, compartilhamento e exclusão de trilhas.
+- Sincronização com a API quando autenticado.
+
+### 🗂️ **Trilhas Públicas e Exportação**
+
+- Listagem de trilhas públicas por área.
+- Visualização de detalhes (POIs, estatísticas, trechos).
+- Exportação em GPX, JSON e TXT.
+
+### 📍 **Pontos de Interesse (POIs)**
+
+- Criação, edição e remoção de POIs.
+- Categorias e ícones específicos.
+- Validação de dados e cálculo de distância.
+
+### 🔐 **Autenticação**
+
+- Login, registro, logout e recuperação de senha.
+- Armazenamento seguro com `react-native-keychain` e `AsyncStorage`.
+- Gestão de tokens de acesso/atualização.
+
 ## 🛠️ Tecnologias Utilizadas
 
 - **React Native** - Framework principal
@@ -50,8 +75,11 @@ TrekSafe é um aplicativo de mapas desenvolvido em React Native que oferece uma 
 - **react-native-permissions** - Gerenciamento de permissões
 - **@react-native-community/geolocation** - Serviços de localização
 - **Google Maps API** - Provedor de mapas
+- **@react-navigation/native** e **@react-navigation/native-stack** - Navegação
+- **react-native-keychain** e **@react-native-async-storage/async-storage** - Armazenamento seguro
+- **axios** - Cliente HTTP
 
-## �� Pré-requisitos
+## ✅ Pré-requisitos
 
 Antes de começar, certifique-se de ter instalado:
 
@@ -96,17 +124,37 @@ yarn install
 
 #### iOS
 
-1. Adicione a chave no arquivo `ios/TrekSafe/AppDelegate.m`:
+O projeto iOS está configurado sem chave do Google por padrão. Se optar por usar o provider Google no iOS (em vez do Apple Maps padrão), siga:
+
+1. Adicione os pods no `ios/Podfile`:
+
+```ruby
+target 'TrekSafe' do
+  # ... configuração existente
+  pod 'GoogleMaps'
+  pod 'Google-Maps-iOS-Utils'
+end
+```
+
+2. Instale os pods:
+
+```bash
+cd ios && pod install && cd ..
+```
+
+3. Inicialize o SDK no `ios/TrekSafe/AppDelegate.mm`:
 
 ```objc
 #import <GoogleMaps/GoogleMaps.h>
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-  [GMSServices provideAPIKey:@"SUA_CHAVE_AQUI"];
-  // resto do código...
+  [GMSServices provideAPIKey:@"SUA_CHAVE_AQUI"]; // substitua pela sua chave
+  return [super application:application didFinishLaunchingWithOptions:launchOptions];
 }
 ```
+
+Observação: se permanecer com o provider padrão (Apple), não é necessário configurar `GoogleMaps` no iOS.
 
 ### 4. Configuração de permissões
 
@@ -131,7 +179,7 @@ Adicione no `ios/TrekSafe/Info.plist`:
 <string>Este app precisa acessar sua localização para mostrar sua posição no mapa.</string>
 ```
 
-## ��‍♂️ Executando o App
+## ▶️ Executando o App
 
 ### Android
 
@@ -161,27 +209,46 @@ yarn ios
 ```
 TrekSafe/
 ├── src/
+│   ├── App.tsx                   # Componente raiz da aplicação
+│   ├── navigation/
+│   │   └── AppNavigator.js       # Controle de rotas e auth
 │   ├── screens/
+│   │   ├── LoginScreen/
+│   │   │   ├── LoginScreen.js
+│   │   │   └── LoginScreen.styles.js
 │   │   └── MapScreen/
-│   │       ├── index.js          # Componente principal do mapa
-│   │       └── styles.js         # Estilos do componente
-│   └── App.js                    # Componente raiz
+│   │       ├── MapScreen.js      # Tela principal de mapa
+│   │       └── MapScreen.styles.js
+│   ├── components/
+│   │   ├── MapControls.js        # Controles flutuantes do mapa
+│   │   ├── AddPOIModal.js        # Modal para adicionar POIs
+│   │   └── TrailsModal.js        # Modal de trilhas (minhas/públicas)
+│   ├── context/
+│   │   └── AuthContext.js        # Contexto de autenticação
+│   ├── services/
+│   │   ├── api.js
+│   │   ├── authService.js
+│   │   ├── trailService.js
+│   │   ├── poiService.js
+│   │   └── favoriteService.js
+│   └── theme/
+│       └── theme.js
 ├── android/                      # Configurações Android
-├── ios/                         # Configurações iOS
-├── package.json                 # Dependências do projeto
-├── yarn.lock                    # Lock file do Yarn
-└── README.md                    # Este arquivo
+├── ios/                          # Configurações iOS
+├── package.json                  # Dependências do projeto
+├── yarn.lock                     # Lock file do Yarn
+└── README.md                     # Este arquivo
 ```
 
 ## 🎨 Personalização
 
 ### Alterando o estilo do mapa
 
-O estilo do modo escuro pode ser customizado no arquivo `src/screens/MapScreen/index.js` na variável `mapStyle`.
+O estilo do mapa (claro/escuro) pode ser customizado em `src/screens/MapScreen/MapScreen.js` (variáveis de estilo do mapa) e em `src/screens/MapScreen/MapScreen.styles.js`.
 
 ### Modificando a localização padrão
 
-Para alterar a localização padrão (atualmente Belo Horizonte), modifique as coordenadas no arquivo `src/screens/MapScreen/index.js`:
+Para alterar a localização padrão (atualmente Belo Horizonte), modifique as coordenadas iniciais (`initialRegion`) em `src/screens/MapScreen/MapScreen.js`:
 
 ```javascript
 const defaultLocation = {
@@ -192,9 +259,9 @@ const defaultLocation = {
 
 ### Personalizando cores
 
-As cores do tema podem ser alteradas no arquivo `src/screens/MapScreen/styles.js`.
+As cores e tipografia do tema podem ser alteradas em `src/theme/theme.js`.
 
-## �� Scripts Disponíveis
+## 🧩 Scripts Disponíveis
 
 ```bash
 # Instalar dependências
@@ -208,6 +275,12 @@ yarn android
 
 # Executar no iOS
 yarn ios
+
+# Testes com Jest
+yarn test
+
+# Lint do código
+yarn lint
 
 # Limpar cache do Metro
 yarn start --reset-cache
@@ -247,6 +320,20 @@ cd ..
 yarn ios
 ```
 
+### Exportação de Trilhas (GPX/JSON/TXT)
+
+Para exportar trilhas:
+
+- Abra o modal de Trilhas (botão na tela do mapa).
+- Selecione a trilha desejada.
+- Toque em “Exportar” e escolha o formato (GPX, JSON ou TXT).
+- Compartilhe/salve utilizando a folha de compartilhamento do sistema.
+
+Notas:
+
+- Trilhas públicas podem ser visualizadas e compartilhadas; exportação pode variar conforme permissões.
+- O conteúdo exportado inclui pontos do percurso e metadados básicos (nome, duração, distância), quando disponíveis.
+
 ## 📱 Compatibilidade
 
 - **Android**: API 21+ (Android 5.0+)
@@ -272,7 +359,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - Desenvolvedor Fullstack
 - GitHub: [@seu-usuario](https://github.com/seu-usuario)
 
-## �� Agradecimentos
+## 🙏 Agradecimentos
 
 - [React Native Maps](https://github.com/react-native-maps/react-native-maps)
 - [React Native Community](https://github.com/react-native-community)
