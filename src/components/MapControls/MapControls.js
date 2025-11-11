@@ -1,10 +1,9 @@
 // src/components/MapControls/MapControls.js
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
-  Dimensions,
-  Modal,
   Text,
   TouchableOpacity,
   View,
@@ -13,531 +12,472 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, ColorUtils } from '../../theme/theme';
 import { createStyles } from './MapControls.styles';
 
-const { width: screenWidth } = Dimensions.get('window');
-
 const MapControls = ({
   isDarkMode,
   isMapReady,
   isRecording,
-  savedTrails = [],
-  publicTrails = [],
-  publicTrailsVisible = true,
-  loadingTrails = false,
-  isSavingTrail = false,
-  isAuthenticated = false,
+  savedTrails,
+  publicTrails,
+  publicTrailsVisible,
+  loadingTrails,
+  isSavingTrail,
+  isAuthenticated,
   onZoomIn,
   onZoomOut,
   onCenterOnUser,
   onToggleRecording,
   onLogin,
+  onLogout,
   onViewTrails,
   onRefreshTrails,
   onTogglePublicTrails,
 }) => {
-  const [showMenu, setShowMenu] = React.useState(false);
-  const [menuAnimation] = React.useState(new Animated.Value(0));
-  const styles = createStyles(isDarkMode, isRecording);
+  // ✅ ESTADOS
+  const [expandedPanel, setExpandedPanel] = useState(null);
+  const [animatedValue] = useState(new Animated.Value(0));
 
-  // ✅ ANIMAÇÃO DO MENU
-  React.useEffect(() => {
-    Animated.timing(menuAnimation, {
-      toValue: showMenu ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [showMenu, menuAnimation]);
+  // ✅ ESTILOS
+  const styles = createStyles(isDarkMode);
 
-  const handleLogin = () => {
-    setShowMenu(false);
-    onLogin();
+  // ✅ CORES DINÂMICAS BASEADAS NO TEMA
+  const themedColors = useMemo(
+    () => ({
+      text: ColorUtils.getThemeColor(
+        Colors.textPrimary,
+        Colors.textPrimaryDark,
+        isDarkMode
+      ),
+      textMuted: ColorUtils.getThemeColor(
+        Colors.textMuted,
+        Colors.textMutedDark,
+        isDarkMode
+      ),
+      primaryBrand: Colors.verdeFlorestaProfundo,
+      accentBrand: Colors.douradoNobre,
+    }),
+    [isDarkMode]
+  );
+
+  // ✅ ESTATÍSTICAS CALCULADAS
+  const stats = useMemo(
+    () => ({
+      totalTrails: savedTrails.length,
+      visibleTrails: savedTrails.filter(t => t.visible !== false).length,
+      totalPublicTrails: publicTrails.length,
+      visiblePublicTrails: publicTrailsVisible ? publicTrails.length : 0,
+      totalDistance: savedTrails.reduce(
+        (sum, trail) => sum + (trail.distance || 0),
+        0
+      ),
+    }),
+    [savedTrails, publicTrails, publicTrailsVisible]
+  );
+
+  // ✅ FUNÇÃO PARA ALTERNAR PAINEL EXPANDIDO
+  const togglePanel = useCallback(
+    panelName => {
+      const isExpanding = expandedPanel !== panelName;
+      setExpandedPanel(isExpanding ? panelName : null);
+
+      Animated.timing(animatedValue, {
+        toValue: isExpanding ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    },
+    [expandedPanel, animatedValue]
+  );
+
+  // ✅ FUNÇÃO PARA CONFIRMAR LOGOUT
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      'Fazer Logout',
+      'Tem certeza que deseja sair da sua conta?\n\nSuas trilhas locais serão mantidas, mas você precisará fazer login novamente para sincronizar.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: () => {
+            togglePanel(null);
+            onLogout();
+          },
+        },
+      ]
+    );
+  }, [onLogout, togglePanel]);
+
+  // ✅ COMPONENTE DE BOTÃO PRINCIPAL
+  const ControlButton = ({
+    icon,
+    onPress,
+    style,
+    iconColor,
+    size = 24,
+    disabled = false,
+    loading = false,
+    badge = null,
+    longPress = false,
+  }) => (
+    <TouchableOpacity
+      style={[styles.controlButton, disabled && styles.disabledButton, style]}
+      onPress={disabled ? undefined : onPress}
+      onLongPress={longPress ? onPress : undefined}
+      activeOpacity={disabled ? 1 : 0.7}
+      disabled={disabled}
+    >
+      {loading ? (
+        <ActivityIndicator
+          size={size * 0.75}
+          color={iconColor || themedColors.textMuted}
+        />
+      ) : (
+        <Icon name={icon} size={size} color={iconColor || themedColors.text} />
+      )}
+      {badge && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  // ✅ COMPONENTE DE PAINEL EXPANDIDO
+  const ExpandedPanel = ({ title, children, visible }) => {
+    if (!visible) return null;
+
+    return (
+      <Animated.View
+        style={[
+          styles.expandedPanel,
+          {
+            opacity: animatedValue,
+            transform: [
+              {
+                translateY: animatedValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <View style={styles.panelHeader}>
+          <Text style={styles.panelTitle}>{title}</Text>
+          <TouchableOpacity
+            onPress={() => togglePanel(null)}
+            style={styles.closeButton}
+          >
+            <Icon name="close" size={20} color={themedColors.textMuted} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.panelContent}>{children}</View>
+      </Animated.View>
+    );
   };
 
-  const handleViewTrails = () => {
-    setShowMenu(false);
-    onViewTrails();
-  };
+  // ✅ COMPONENTE DE ESTATÍSTICA
+  const StatItem = ({ icon, label, value, color = themedColors.text }) => (
+    <View style={styles.statItem}>
+      <Icon name={icon} size={16} color={color} />
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+    </View>
+  );
 
-  const handleRefreshTrails = () => {
-    setShowMenu(false);
-    if (onRefreshTrails) {
-      onRefreshTrails();
-    }
-  };
-
-  const handleTogglePublicTrails = () => {
-    if (onTogglePublicTrails) {
-      onTogglePublicTrails(!publicTrailsVisible);
-    }
-  };
-
-  // ✅ FUNÇÃO PARA OBTER STATUS DA GRAVAÇÃO
-  const getRecordingStatus = () => {
-    if (isSavingTrail)
-      return { text: 'Salvando trilha...', color: Colors.orange500 };
-    if (isRecording) return { text: 'Gravando trilha', color: Colors.errorRed };
-    return null;
-  };
-
-  const recordingStatus = getRecordingStatus();
+  // ✅ COMPONENTE DE BOTÃO DE AÇÃO
+  const ActionButton = ({
+    icon,
+    label,
+    onPress,
+    color = Colors.infoBlue,
+    disabled = false,
+  }) => (
+    <TouchableOpacity
+      style={[
+        styles.actionButton,
+        {
+          backgroundColor: disabled
+            ? ColorUtils.getThemeColor(
+                Colors.gray200,
+                Colors.gray700,
+                isDarkMode
+              )
+            : ColorUtils.withOpacity(color, 0.1),
+          borderColor: disabled
+            ? ColorUtils.getThemeColor(
+                Colors.gray300,
+                Colors.gray600,
+                isDarkMode
+              )
+            : color,
+        },
+      ]}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
+    >
+      <Icon
+        name={icon}
+        size={18}
+        color={disabled ? themedColors.textMuted : color}
+      />
+      <Text
+        style={[
+          styles.actionButtonText,
+          { color: disabled ? themedColors.textMuted : color },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <>
-      {/* ✅ BOTÃO DO MENU SUPERIOR MELHORADO */}
-      <TouchableOpacity
-        style={[
-          styles.menuButton,
-          !isMapReady && styles.disabledButton,
-          showMenu && styles.menuButtonActive,
-        ]}
-        onPress={() => setShowMenu(true)}
-        activeOpacity={0.8}
-        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-        disabled={!isMapReady}
-      >
-        <Icon
-          name={showMenu ? 'close' : 'menu'}
-          size={24}
-          color={
-            showMenu
-              ? Colors.white
-              : ColorUtils.getThemeColor(
-                  Colors.textPrimary,
-                  Colors.textPrimaryDark,
-                  isDarkMode
-                )
-          }
-        />
-        {/* Badge de notificações */}
-        {(savedTrails.length > 0 || publicTrails.length > 0) && !showMenu && (
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationBadgeText}>
-              {savedTrails.length + publicTrails.length}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      {/* ✅ CONTROLES PRINCIPAIS - LADO DIREITO */}
+      <View style={styles.rightControls}>
+        {/* ZOOM IN */}
+        <ControlButton icon="plus" onPress={onZoomIn} disabled={!isMapReady} />
 
-      {/* ✅ INDICADOR DE STATUS MELHORADO */}
-      {recordingStatus && (
-        <Animated.View
-          style={[
-            styles.statusIndicator,
-            {
-              backgroundColor: recordingStatus.color + 'E6',
-              transform: [
-                {
-                  translateY: menuAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -10],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.statusContent}>
-            {isSavingTrail ? (
-              <ActivityIndicator size={16} color={Colors.white} />
-            ) : (
-              <Animated.View
-                style={[
-                  styles.recordingDot,
-                  {
-                    transform: [
-                      {
-                        scale: menuAnimation.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 1.2],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            )}
-            <Text style={styles.statusText}>{recordingStatus.text}</Text>
-          </View>
-          {isRecording && (
-            <Text style={styles.statusSubtext}>
-              Toque e segure no mapa para adicionar POI
-            </Text>
-          )}
-        </Animated.View>
-      )}
-
-      {/* ✅ CONTROLES LATERAIS MELHORADOS */}
-      <View style={styles.controlsContainer}>
-        {/* Zoom In */}
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            styles.zoomButton,
-            !isMapReady && styles.disabledButton,
-          ]}
-          onPress={onZoomIn}
-          activeOpacity={0.8}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          disabled={!isMapReady}
-        >
-          <Icon name="plus" size={22} color={Colors.white} />
-        </TouchableOpacity>
-
-        {/* Zoom Out */}
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            styles.zoomButton,
-            !isMapReady && styles.disabledButton,
-          ]}
+        {/* ZOOM OUT */}
+        <ControlButton
+          icon="minus"
           onPress={onZoomOut}
-          activeOpacity={0.8}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           disabled={!isMapReady}
-        >
-          <Icon name="minus" size={22} color={Colors.white} />
-        </TouchableOpacity>
+          style={{ marginTop: 8 }}
+        />
 
-        {/* ✅ BOTÃO DE TRILHAS PÚBLICAS */}
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            styles.publicTrailsButton,
-            {
-              backgroundColor: publicTrailsVisible
-                ? Colors.blue500
-                : ColorUtils.getThemeColor(
-                    Colors.gray400,
-                    Colors.gray600,
-                    isDarkMode
-                  ),
-              opacity: publicTrails.length > 0 ? 1 : 0.5,
-            },
-            !isMapReady && styles.disabledButton,
-          ]}
-          onPress={handleTogglePublicTrails}
-          activeOpacity={0.8}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          disabled={publicTrails.length === 0 || !isMapReady}
-        >
-          <Icon
-            name={publicTrailsVisible ? 'earth' : 'earth-off'}
-            size={20}
-            color={Colors.white}
-          />
-          {publicTrails.length > 0 && (
-            <View style={styles.trailsBadge}>
-              <Text style={styles.trailsBadgeText}>{publicTrails.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Botão de Localização */}
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            styles.locationButton,
-            !isMapReady && styles.disabledButton,
-          ]}
+        {/* CENTRALIZAR NO USUÁRIO */}
+        <ControlButton
+          icon="crosshairs-gps"
           onPress={onCenterOnUser}
-          activeOpacity={0.8}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           disabled={!isMapReady}
-        >
-          <Icon name="crosshairs-gps" size={20} color={Colors.white} />
-        </TouchableOpacity>
+          iconColor={Colors.infoBlue}
+          style={{ marginTop: 16 }}
+        />
+
+        {/* ESTATÍSTICAS */}
+        <ControlButton
+          icon="chart-line"
+          onPress={() => togglePanel('stats')}
+          disabled={!isMapReady}
+          iconColor={Colors.successGreen}
+          style={{ marginTop: 16 }}
+          badge={stats.totalTrails > 0 ? stats.totalTrails : null}
+        />
+
+        {/* TRILHAS */}
+        <ControlButton
+          icon="map-marker-path"
+          onPress={onViewTrails}
+          disabled={!isMapReady}
+          iconColor={Colors.purple500}
+          style={{ marginTop: 8 }}
+        />
       </View>
 
-      {/* ✅ BOTÃO DE GRAVAÇÃO CENTRAL MELHORADO */}
-      <View style={styles.recordingContainer}>
+      {/* ✅ CONTROLES INFERIORES */}
+      <View style={styles.bottomControls}>
+        {/* PAINEL DE INFORMAÇÕES */}
+        <View style={styles.infoPanel}>
+          {/* STATUS DE GRAVAÇÃO */}
+          {isRecording && (
+            <View style={styles.recordingStatus}>
+              <View style={styles.recordingDot} />
+              <Text style={styles.recordingText}>Gravando</Text>
+            </View>
+          )}
+
+          {/* STATUS DE SALVAMENTO */}
+          {isSavingTrail && (
+            <View style={styles.savingStatus}>
+              <ActivityIndicator size={16} color={Colors.infoBlue} />
+              <Text style={styles.savingText}>Salvando trilha...</Text>
+            </View>
+          )}
+
+          {/* STATUS DE CARREGAMENTO */}
+          {loadingTrails && (
+            <View style={styles.loadingStatus}>
+              <ActivityIndicator size={16} color={Colors.warningOrange} />
+              <Text style={styles.loadingText}>Carregando trilhas...</Text>
+            </View>
+          )}
+
+          {/* STATUS NORMAL */}
+          {!isRecording && !isSavingTrail && !loadingTrails && (
+            <View style={styles.normalStatus}>
+              <Icon
+                name={isAuthenticated ? 'account-check' : 'account-off'}
+                size={16}
+                color={
+                  isAuthenticated ? Colors.successGreen : themedColors.textMuted
+                }
+              />
+              <Text style={styles.statusText}>
+                {isAuthenticated ? 'Conectado' : 'Offline'}
+              </Text>
+              {stats.totalTrails > 0 && (
+                <>
+                  <Text style={styles.separator}>•</Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: themedColors.textMuted },
+                    ]}
+                  >
+                    {stats.totalTrails} trilha
+                    {stats.totalTrails !== 1 ? 's' : ''}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* BOTÃO PRINCIPAL DE GRAVAÇÃO */}
         <TouchableOpacity
           style={[
             styles.recordButton,
-            isRecording && styles.recordButtonActive,
-            isSavingTrail && styles.recordButtonSaving,
+            {
+              backgroundColor: isRecording
+                ? Colors.errorRed
+                : themedColors.primaryBrand,
+            },
             !isMapReady && styles.disabledButton,
           ]}
           onPress={onToggleRecording}
+          disabled={!isMapReady}
           activeOpacity={0.8}
-          disabled={!isMapReady || isSavingTrail}
         >
-          {isSavingTrail ? (
-            <ActivityIndicator size={28} color={Colors.white} />
-          ) : (
-            <Icon
-              name={isRecording ? 'stop' : 'record'}
-              size={isRecording ? 24 : 28}
-              color={Colors.white}
-            />
-          )}
+          <Icon
+            name={isRecording ? 'stop' : 'play'}
+            size={28}
+            color={Colors.white}
+          />
         </TouchableOpacity>
 
-        <Text style={styles.recordingLabel}>
-          {isSavingTrail ? 'Salvando...' : isRecording ? 'Parar' : 'Gravar'}
-        </Text>
+        {/* BOTÃO DE LOGIN/MENU */}
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => togglePanel('menu')}
+          activeOpacity={0.7}
+        >
+          <Icon
+            name={isAuthenticated ? 'account-circle' : 'login'}
+            size={24}
+            color={
+              isAuthenticated ? themedColors.primaryBrand : themedColors.text
+            }
+          />
+        </TouchableOpacity>
       </View>
 
-      {/* ✅ MODAL DO MENU MELHORADO */}
-      <Modal
-        visible={showMenu}
-        transparent={true}
-        animationType="none"
-        onRequestClose={() => setShowMenu(false)}
-        statusBarTranslucent
-      >
+      {/* ✅ PAINEL DE ESTATÍSTICAS */}
+      <ExpandedPanel title="Estatísticas" visible={expandedPanel === 'stats'}>
+        <StatItem
+          icon="map-marker-path"
+          label="Trilhas Salvas"
+          value={`${stats.visibleTrails}/${stats.totalTrails}`}
+          color={Colors.successGreen}
+        />
+        <StatItem
+          icon="earth"
+          label="Trilhas Públicas"
+          value={`${stats.visiblePublicTrails}/${stats.totalPublicTrails}`}
+          color={Colors.infoBlue}
+        />
+        <StatItem
+          icon="map-marker-distance"
+          label="Distância Total"
+          value={`${stats.totalDistance.toFixed(1)} km`}
+          color={Colors.warningOrange}
+        />
+        <StatItem
+          icon="eye"
+          label="Visibilidade Públicas"
+          value={publicTrailsVisible ? 'Visíveis no mapa' : 'Ocultas no mapa'}
+          color={
+            publicTrailsVisible ? Colors.successGreen : themedColors.textMuted
+          }
+        />
+
+        <View style={styles.actionButtonsRow}>
+          <ActionButton
+            icon={publicTrailsVisible ? 'eye-off' : 'eye'}
+            label={
+              publicTrailsVisible ? 'Ocultar Públicas' : 'Mostrar Públicas'
+            }
+            onPress={() => onTogglePublicTrails(!publicTrailsVisible)}
+            color={Colors.infoBlue}
+          />
+          <ActionButton
+            icon="refresh"
+            label="Atualizar"
+            onPress={onRefreshTrails}
+            color={Colors.warningOrange}
+            disabled={loadingTrails}
+          />
+        </View>
+      </ExpandedPanel>
+
+      {/* ✅ PAINEL DE MENU */}
+      <ExpandedPanel title="Menu" visible={expandedPanel === 'menu'}>
+        {!isAuthenticated ? (
+          <>
+            <View style={styles.loginPrompt}>
+              <Icon name="account-plus" size={32} color={Colors.infoBlue} />
+              <Text style={styles.loginTitle}>Faça Login</Text>
+              <Text style={styles.loginSubtitle}>
+                Sincronize suas trilhas na nuvem e acesse de qualquer
+                dispositivo
+              </Text>
+            </View>
+            <ActionButton
+              icon="login"
+              label="Fazer Login"
+              onPress={onLogin}
+              color={Colors.infoBlue}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.userInfo}>
+              <Icon
+                name="account-check-outline"
+                size={24}
+                color={Colors.successGreen}
+              />
+              <Text style={styles.userText}>Conectado com sucesso</Text>
+            </View>
+            <View style={styles.actionButtonsRow}>
+              <ActionButton
+                icon="map-marker-path"
+                label="Minhas Trilhas"
+                onPress={onViewTrails}
+                color={Colors.purple500}
+              />
+              <ActionButton
+                icon="logout"
+                label="Sair"
+                onPress={handleLogout}
+                color={Colors.errorRed}
+              />
+            </View>
+          </>
+        )}
+      </ExpandedPanel>
+
+      {/* ✅ OVERLAY PARA FECHAR PAINÉIS */}
+      {expandedPanel && (
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={styles.overlay}
+          onPress={() => togglePanel(null)}
           activeOpacity={1}
-          onPress={() => setShowMenu(false)}
-        >
-          <Animated.View
-            style={[
-              styles.modalContent,
-              {
-                transform: [
-                  {
-                    translateX: menuAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-screenWidth * 0.8, 0],
-                    }),
-                  },
-                ],
-                opacity: menuAnimation,
-              },
-            ]}
-          >
-            {/* Header do Menu */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>TrekSafe</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowMenu(false)}
-                activeOpacity={0.8}
-              >
-                <Icon name="close" size={24} color={Colors.gray500} />
-              </TouchableOpacity>
-            </View>
-
-            {/* ✅ STATUS DE AUTENTICAÇÃO MELHORADO */}
-            <View
-              style={[
-                styles.authStatus,
-                {
-                  backgroundColor: isAuthenticated
-                    ? Colors.successGreen + '15'
-                    : Colors.gray500 + '15',
-                },
-              ]}
-            >
-              <View style={styles.authStatusIcon}>
-                <Icon
-                  name={isAuthenticated ? 'account-check' : 'account-outline'}
-                  size={24}
-                  color={isAuthenticated ? Colors.successGreen : Colors.gray500}
-                />
-              </View>
-              <View style={styles.authStatusInfo}>
-                <Text
-                  style={[
-                    styles.authStatusText,
-                    {
-                      color: isAuthenticated
-                        ? Colors.successGreen
-                        : Colors.gray500,
-                    },
-                  ]}
-                >
-                  {isAuthenticated ? 'Conectado' : 'Não conectado'}
-                </Text>
-                <Text style={styles.authStatusSubtext}>
-                  {isAuthenticated
-                    ? 'Suas trilhas estão sincronizadas'
-                    : 'Faça login para sincronizar trilhas'}
-                </Text>
-              </View>
-            </View>
-
-            {/* ✅ OPÇÕES DO MENU MELHORADAS */}
-            <View style={styles.menuOptions}>
-              {/* Login/Logout */}
-              <TouchableOpacity
-                style={styles.menuOption}
-                onPress={handleLogin}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.menuOptionIcon,
-                    { backgroundColor: Colors.blue500 + '20' },
-                  ]}
-                >
-                  <Icon
-                    name={isAuthenticated ? 'logout' : 'login'}
-                    size={22}
-                    color={Colors.blue500}
-                  />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionText}>
-                    {isAuthenticated ? 'Trocar Conta' : 'Entrar na Conta'}
-                  </Text>
-                  <Text style={styles.menuOptionSubtext}>
-                    {isAuthenticated
-                      ? 'Fazer logout ou trocar usuário'
-                      : 'Sincronize suas trilhas'}
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={20} color={Colors.gray400} />
-              </TouchableOpacity>
-
-              {/* Minhas Trilhas */}
-              <TouchableOpacity
-                style={styles.menuOption}
-                onPress={handleViewTrails}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.menuOptionIcon,
-                    { backgroundColor: Colors.successGreen + '20' },
-                  ]}
-                >
-                  <Icon name="hiking" size={22} color={Colors.successGreen} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionText}>Minhas Trilhas</Text>
-                  <Text style={styles.menuOptionSubtext}>
-                    {savedTrails.length} trilha
-                    {savedTrails.length !== 1 ? 's' : ''} gravada
-                    {savedTrails.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                {savedTrails.length > 0 && (
-                  <View
-                    style={[
-                      styles.trailsBadge,
-                      { backgroundColor: Colors.successGreen },
-                    ]}
-                  >
-                    <Text style={styles.trailsBadgeText}>
-                      {savedTrails.length}
-                    </Text>
-                  </View>
-                )}
-                <Icon name="chevron-right" size={20} color={Colors.gray400} />
-              </TouchableOpacity>
-
-              {/* Trilhas Públicas */}
-              <TouchableOpacity
-                style={styles.menuOption}
-                onPress={handleRefreshTrails}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.menuOptionIcon,
-                    { backgroundColor: Colors.orange500 + '20' },
-                  ]}
-                >
-                  <Icon name="earth" size={22} color={Colors.orange500} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionText}>Trilhas Públicas</Text>
-                  <Text style={styles.menuOptionSubtext}>
-                    {loadingTrails
-                      ? 'Carregando...'
-                      : `${publicTrails.length} trilha${
-                          publicTrails.length !== 1 ? 's' : ''
-                        } na região`}
-                  </Text>
-                </View>
-                {loadingTrails ? (
-                  <ActivityIndicator
-                    size={20}
-                    color={Colors.orange500}
-                    style={{ marginRight: 8 }}
-                  />
-                ) : publicTrails.length > 0 ? (
-                  <View
-                    style={[
-                      styles.trailsBadge,
-                      { backgroundColor: Colors.orange500 },
-                    ]}
-                  >
-                    <Text style={styles.trailsBadgeText}>
-                      {publicTrails.length}
-                    </Text>
-                  </View>
-                ) : null}
-                <Icon name="chevron-right" size={20} color={Colors.gray400} />
-              </TouchableOpacity>
-
-              {/* ✅ NOVA OPÇÃO: CONFIGURAÇÕES */}
-              <TouchableOpacity
-                style={styles.menuOption}
-                onPress={() => {
-                  setShowMenu(false);
-                  // TODO: Implementar tela de configurações
-                }}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.menuOptionIcon,
-                    { backgroundColor: Colors.purple500 + '20' },
-                  ]}
-                >
-                  <Icon name="cog" size={22} color={Colors.purple500} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionText}>Configurações</Text>
-                  <Text style={styles.menuOptionSubtext}>
-                    Preferências e ajustes do app
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={20} color={Colors.gray400} />
-              </TouchableOpacity>
-
-              {/* ✅ NOVA OPÇÃO: SOBRE */}
-              <TouchableOpacity
-                style={styles.menuOption}
-                onPress={() => {
-                  setShowMenu(false);
-                  // TODO: Implementar tela sobre
-                }}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.menuOptionIcon,
-                    { backgroundColor: Colors.infoBlue + '20' },
-                  ]}
-                >
-                  <Icon name="information" size={22} color={Colors.infoBlue} />
-                </View>
-                <View style={styles.menuOptionContent}>
-                  <Text style={styles.menuOptionText}>Sobre</Text>
-                  <Text style={styles.menuOptionSubtext}>
-                    Versão 1.0.0 • TrekSafe
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={20} color={Colors.gray400} />
-              </TouchableOpacity>
-            </View>
-
-            {/* ✅ FOOTER DO MENU */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowMenu(false)}
-                activeOpacity={0.8}
-              >
-                <Icon name="close-circle" size={20} color={Colors.gray500} />
-                <Text style={styles.closeButtonText}>Fechar Menu</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
-      </Modal>
+        />
+      )}
     </>
   );
 };

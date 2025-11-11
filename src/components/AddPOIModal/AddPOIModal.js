@@ -1,11 +1,10 @@
 // src/components/AddPOIModal/AddPOIModal.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -13,65 +12,336 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, ColorUtils } from '../../theme/theme';
+import { createStyles } from './AddPOIModal.styles';
 
 const AddPOIModal = ({
   visible,
   isDarkMode,
   location,
+  trekId,
   onClose,
   onSave,
   loading = false,
 }) => {
+  // ✅ ESTADOS
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('landmark');
+  const [errors, setErrors] = useState({});
 
+  // ✅ ESTILOS
+  const styles = createStyles(isDarkMode);
+
+  // ✅ CORES DINÂMICAS BASEADAS NO TEMA
+  const themedColors = {
+    text: ColorUtils.getThemeColor(
+      Colors.textPrimary,
+      Colors.textPrimaryDark,
+      isDarkMode
+    ),
+    textMuted: ColorUtils.getThemeColor(
+      Colors.textMuted,
+      Colors.textMutedDark,
+      isDarkMode
+    ),
+  };
+
+  // ✅ RESETAR ESTADOS AO ABRIR/FECHAR MODAL
+  useEffect(() => {
+    if (visible) {
+      setName('');
+      setDescription('');
+      setCategory('landmark');
+      setErrors({});
+    }
+  }, [visible]);
+
+  // ✅ DEBUG: Log para verificar valores - MELHORADO
+  useEffect(() => {
+    console.log('🔍 AddPOIModal Debug:', {
+      visible,
+      name: `"${name}"`,
+      nameLength: name.length,
+      nameTrimmed: `"${name.trim()}"`,
+      nameTrimmedLength: name.trim().length,
+      description: `"${description}"`,
+      descriptionLength: description.length,
+      location: location
+        ? {
+            lat: location.latitude,
+            lng: location.longitude,
+            alt: location.altitude,
+          }
+        : 'NULL',
+      trekId: trekId || 'NULL',
+      loading,
+      category,
+    });
+  }, [visible, name, description, location, trekId, loading, category]);
+
+  // ✅ CATEGORIAS DISPONÍVEIS
   const categories = [
-    { key: 'landmark', label: 'Marco', icon: 'map-marker-star' },
-    { key: 'viewpoint', label: 'Mirante', icon: 'binoculars' },
-    { key: 'water', label: 'Água', icon: 'water' },
-    { key: 'shelter', label: 'Abrigo', icon: 'home-variant' },
-    { key: 'danger', label: 'Perigo', icon: 'alert-triangle' },
-    { key: 'parking', label: 'Estacionamento', icon: 'parking' },
-    { key: 'food', label: 'Alimentação', icon: 'food' },
-    { key: 'camping', label: 'Camping', icon: 'tent' },
-    { key: 'bridge', label: 'Ponte', icon: 'bridge' },
-    { key: 'cave', label: 'Caverna', icon: 'tunnel' },
-    { key: 'summit', label: 'Pico', icon: 'mountain' },
-    { key: 'waterfall', label: 'Cachoeira', icon: 'waves' },
-    { key: 'wildlife', label: 'Vida Selvagem', icon: 'paw' },
-    { key: 'photo', label: 'Foto', icon: 'camera' },
-    { key: 'rest', label: 'Descanso', icon: 'chair-rolling' },
-    { key: 'other', label: 'Outro', icon: 'map-marker' },
+    {
+      key: 'landmark',
+      label: 'Marco',
+      icon: 'map-marker-star',
+      color: Colors.orange500,
+    },
+    {
+      key: 'viewpoint',
+      label: 'Mirante',
+      icon: 'binoculars',
+      color: Colors.infoBlue,
+    },
+    {
+      key: 'water',
+      label: 'Água',
+      icon: 'water',
+      color: Colors.blue400,
+    },
+    {
+      key: 'shelter',
+      label: 'Abrigo',
+      icon: 'home-variant',
+      color: Colors.successGreen,
+    },
+    {
+      key: 'danger',
+      label: 'Perigo',
+      icon: 'alert-triangle',
+      color: Colors.errorRed,
+    },
+    {
+      key: 'parking',
+      label: 'Estacionamento',
+      icon: 'parking',
+      color: Colors.gray500,
+    },
+    {
+      key: 'food',
+      label: 'Alimentação',
+      icon: 'food',
+      color: Colors.purple500,
+    },
+    {
+      key: 'camping',
+      label: 'Camping',
+      icon: 'tent',
+      color: Colors.green600,
+    },
+    {
+      key: 'bridge',
+      label: 'Ponte',
+      icon: 'bridge',
+      color: Colors.marromRustico,
+    },
+    {
+      key: 'cave',
+      label: 'Caverna',
+      icon: 'tunnel',
+      color: Colors.gray700,
+    },
+    {
+      key: 'summit',
+      label: 'Pico',
+      icon: 'mountain',
+      color: Colors.red500,
+    },
+    {
+      key: 'waterfall',
+      label: 'Cachoeira',
+      icon: 'waves',
+      color: Colors.azulCascata,
+    },
+    {
+      key: 'wildlife',
+      label: 'Vida Selvagem',
+      icon: 'paw',
+      color: Colors.douradoNobre,
+    },
+    {
+      key: 'photo',
+      label: 'Foto',
+      icon: 'camera',
+      color: Colors.pink500,
+    },
+    {
+      key: 'rest',
+      label: 'Descanso',
+      icon: 'chair-rolling',
+      color: Colors.purple700,
+    },
+    {
+      key: 'other',
+      label: 'Outro',
+      icon: 'map-marker',
+      color: Colors.gray600,
+    },
   ];
 
+  // ✅ VALIDAÇÃO MELHORADA
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Validação do nome
+    if (!name || !name.trim()) {
+      newErrors.name = 'Nome é obrigatório';
+    } else if (name.trim().length < 2) {
+      newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
+    } else if (name.trim().length > 50) {
+      newErrors.name = 'Nome deve ter no máximo 50 caracteres';
+    }
+
+    // Validação da descrição (opcional, mas com limite)
+    if (description && description.length > 200) {
+      newErrors.description = 'Descrição deve ter no máximo 200 caracteres';
+    }
+
+    // ✅ VALIDAÇÃO DA LOCALIZAÇÃO MELHORADA
+    if (!location) {
+      newErrors.location = 'Localização não fornecida';
+    } else if (
+      typeof location.latitude !== 'number' ||
+      typeof location.longitude !== 'number' ||
+      isNaN(location.latitude) ||
+      isNaN(location.longitude)
+    ) {
+      newErrors.location = 'Coordenadas de localização inválidas';
+    } else if (
+      location.latitude < -90 ||
+      location.latitude > 90 ||
+      location.longitude < -180 ||
+      location.longitude > 180
+    ) {
+      newErrors.location = 'Coordenadas fora do intervalo válido';
+    }
+
+    // ✅ VALIDAÇÃO DO TREKID MELHORADA
+    if (!trekId || trekId === null || trekId === undefined) {
+      newErrors.trek = 'ID da trilha é obrigatório para adicionar POI';
+    } else if (typeof trekId !== 'string' || trekId.trim().length === 0) {
+      newErrors.trek = 'ID da trilha inválido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // ✅ LÓGICA DE HABILITAÇÃO DO BOTÃO CORRIGIDA
+  const isFormValid = () => {
+    // Validação do nome
+    const hasValidName =
+      name &&
+      name.trim() &&
+      name.trim().length >= 2 &&
+      name.trim().length <= 50;
+
+    // Validação da descrição
+    const hasValidDescription = !description || description.length <= 200;
+
+    // ✅ VALIDAÇÃO DA LOCALIZAÇÃO CORRIGIDA
+    const hasValidLocation =
+      location &&
+      typeof location.latitude === 'number' &&
+      typeof location.longitude === 'number' &&
+      !isNaN(location.latitude) &&
+      !isNaN(location.longitude) &&
+      location.latitude >= -90 &&
+      location.latitude <= 90 &&
+      location.longitude >= -180 &&
+      location.longitude <= 180;
+
+    // ✅ VALIDAÇÃO DO TREKID CORRIGIDA
+    const hasValidTrekId =
+      trekId &&
+      trekId !== null &&
+      trekId !== undefined &&
+      typeof trekId === 'string' &&
+      trekId.trim().length > 0;
+
+    const notLoading = !loading;
+
+    const result =
+      hasValidName &&
+      hasValidDescription &&
+      hasValidLocation &&
+      hasValidTrekId &&
+      notLoading;
+
+    console.log('🔍 Validação do botão CORRIGIDA:', {
+      hasValidName,
+      hasValidDescription,
+      hasValidLocation,
+      hasValidTrekId,
+      notLoading,
+      result,
+      locationData: location,
+      trekIdData: trekId,
+    });
+
+    return result;
+  };
+
+  const canSave = isFormValid();
+
+  // ✅ FUNÇÃO PARA SALVAR POI MELHORADA
   const handleSave = () => {
-    if (!name.trim()) {
-      Alert.alert('Erro', 'Digite um nome para o POI');
+    console.log('🎯 Tentando salvar POI...');
+
+    if (!validateForm()) {
+      console.log('❌ Validação falhou:', errors);
+      Alert.alert('Erro', 'Por favor, corrija os erros no formulário.');
       return;
     }
 
-    onSave({
+    // ✅ DADOS CORRETOS CONFORME SUA API
+    const poiData = {
+      trekId: trekId.trim(),
       name: name.trim(),
-      description: description.trim(),
-      category,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    });
+      description: description.trim() || '', // Garantir string vazia se não houver descrição
+      lat: Number(location.latitude),
+      lng: Number(location.longitude),
+      alt: location.altitude ? Number(location.altitude) : undefined,
+      category: category,
+    };
 
-    // Limpar campos
-    setName('');
-    setDescription('');
-    setCategory('landmark');
+    console.log('📍 Dados do POI para envio (CORRIGIDOS):', poiData);
+    onSave(poiData);
   };
 
+  // ✅ FUNÇÃO PARA FECHAR MODAL
   const handleClose = () => {
     setName('');
     setDescription('');
     setCategory('landmark');
+    setErrors({});
     onClose();
   };
 
+  // ✅ HANDLERS DE INPUT
+  const handleNameChange = text => {
+    setName(text);
+    if (errors.name) {
+      setErrors(prev => ({ ...prev, name: null }));
+    }
+  };
+
+  const handleDescriptionChange = text => {
+    setDescription(text);
+    if (errors.description) {
+      setErrors(prev => ({ ...prev, description: null }));
+    }
+  };
+
+  // ✅ FUNÇÃO PARA OBTER ESTILO DO CONTADOR DE CARACTERES
+  const getCharCountStyle = (current, max) => {
+    const percentage = (current / max) * 100;
+    if (percentage >= 100) return styles.charCountAtLimit;
+    if (percentage >= 80) return styles.charCountNearLimit;
+    return styles.charCount;
+  };
+
+  // ✅ RENDERIZAÇÃO COM VALIDAÇÕES MELHORADAS
   return (
     <Modal
       visible={visible}
@@ -80,43 +350,12 @@ const AddPOIModal = ({
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <View
-          style={[
-            styles.container,
-            {
-              backgroundColor: ColorUtils.getThemeColor(
-                Colors.backgroundPrimary,
-                Colors.backgroundPrimaryDark,
-                isDarkMode
-              ),
-            },
-          ]}
-        >
+        <View style={styles.container}>
+          {/* ✅ CABEÇALHO */}
           <View style={styles.header}>
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: ColorUtils.getThemeColor(
-                    Colors.textPrimary,
-                    Colors.textPrimaryDark,
-                    isDarkMode
-                  ),
-                },
-              ]}
-            >
-              Adicionar POI
-            </Text>
+            <Text style={styles.title}>Adicionar POI</Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Icon
-                name="close"
-                size={24}
-                color={ColorUtils.getThemeColor(
-                  Colors.textPrimary,
-                  Colors.textPrimaryDark,
-                  isDarkMode
-                )}
-              />
+              <Icon name="close" size={24} color={themedColors.text} />
             </TouchableOpacity>
           </View>
 
@@ -124,114 +363,74 @@ const AddPOIModal = ({
             style={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            {/* Localização */}
+            {/* ✅ LOCALIZAÇÃO COM VALIDAÇÃO VISUAL */}
             <View style={styles.locationInfo}>
-              <Icon name="map-marker" size={20} color={Colors.blue500} />
-              <Text
-                style={[
-                  styles.locationText,
-                  {
-                    color: ColorUtils.getThemeColor(
-                      Colors.textMuted,
-                      Colors.textMutedDark,
-                      isDarkMode
-                    ),
-                  },
-                ]}
-              >
-                {location?.latitude?.toFixed(6)},{' '}
-                {location?.longitude?.toFixed(6)}
+              <Icon
+                name="map-marker"
+                size={20}
+                color={location ? Colors.infoBlue : Colors.errorRed}
+              />
+              <Text style={styles.locationText}>
+                {location &&
+                typeof location.latitude === 'number' &&
+                typeof location.longitude === 'number'
+                  ? `${location.latitude.toFixed(
+                      6
+                    )}, ${location.longitude.toFixed(6)}`
+                  : 'Localização inválida'}
               </Text>
             </View>
 
-            {/* Nome */}
+            {/* ✅ DEBUG INFO MELHORADO */}
+            <View style={styles.debugInfo}>
+              <Text style={styles.debugText}>
+                DEBUG: Nome="{name}" | TrekId={trekId || 'NULL'} | CanSave=
+                {canSave ? 'SIM' : 'NÃO'}
+              </Text>
+              {errors.trek && (
+                <Text style={styles.debugError}> ({errors.trek})</Text>
+              )}
+              {errors.location && (
+                <Text style={styles.debugError}> ({errors.location})</Text>
+              )}
+            </View>
+
+            {/* ✅ NOME */}
             <View style={styles.inputGroup}>
-              <Text
-                style={[
-                  styles.label,
-                  {
-                    color: ColorUtils.getThemeColor(
-                      Colors.textPrimary,
-                      Colors.textPrimaryDark,
-                      isDarkMode
-                    ),
-                  },
-                ]}
-              >
-                Nome *
+              <Text style={styles.label}>
+                Nome <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: ColorUtils.getThemeColor(
-                      Colors.backgroundSecondary,
-                      Colors.backgroundSecondaryDark,
-                      isDarkMode
-                    ),
-                    borderColor: ColorUtils.getThemeColor(
-                      Colors.gray300,
-                      Colors.gray600,
-                      isDarkMode
-                    ),
-                    color: ColorUtils.getThemeColor(
-                      Colors.textPrimary,
-                      Colors.textPrimaryDark,
-                      isDarkMode
-                    ),
-                  },
-                ]}
+                style={[styles.input, errors.name && styles.inputError]}
                 value={name}
-                onChangeText={setName}
+                onChangeText={handleNameChange}
                 placeholder="Ex: Cachoeira do Vale"
-                placeholderTextColor={ColorUtils.getThemeColor(
-                  Colors.textMuted,
-                  Colors.textMutedDark,
-                  isDarkMode
-                )}
+                placeholderTextColor={themedColors.textMuted}
                 maxLength={50}
+                autoFocus={true}
               />
+              {errors.name && (
+                <Text style={styles.errorText}>{errors.name}</Text>
+              )}
+              <Text
+                style={[styles.charCount, getCharCountStyle(name.length, 50)]}
+              >
+                {name.length}/50
+              </Text>
             </View>
 
-            {/* Categoria */}
+            {/* ✅ CATEGORIA */}
             <View style={styles.inputGroup}>
-              <Text
-                style={[
-                  styles.label,
-                  {
-                    color: ColorUtils.getThemeColor(
-                      Colors.textPrimary,
-                      Colors.textPrimaryDark,
-                      isDarkMode
-                    ),
-                  },
-                ]}
-              >
-                Categoria
-              </Text>
+              <Text style={styles.label}>Categoria</Text>
               <View style={styles.categoriesGrid}>
                 {categories.map(cat => (
                   <TouchableOpacity
                     key={cat.key}
                     style={[
                       styles.categoryButton,
-                      {
-                        backgroundColor:
-                          category === cat.key
-                            ? Colors.blue500
-                            : ColorUtils.getThemeColor(
-                                Colors.backgroundSecondary,
-                                Colors.backgroundSecondaryDark,
-                                isDarkMode
-                              ),
-                        borderColor:
-                          category === cat.key
-                            ? Colors.blue500
-                            : ColorUtils.getThemeColor(
-                                Colors.gray300,
-                                Colors.gray600,
-                                isDarkMode
-                              ),
+                      category === cat.key && {
+                        backgroundColor: cat.color,
+                        borderColor: cat.color,
                       },
                     ]}
                     onPress={() => setCategory(cat.key)}
@@ -239,24 +438,13 @@ const AddPOIModal = ({
                   >
                     <Icon
                       name={cat.icon}
-                      size={20}
-                      color={
-                        category === cat.key ? Colors.white : Colors.blue500
-                      }
+                      size={18}
+                      color={category === cat.key ? Colors.white : cat.color}
                     />
                     <Text
                       style={[
                         styles.categoryText,
-                        {
-                          color:
-                            category === cat.key
-                              ? Colors.white
-                              : ColorUtils.getThemeColor(
-                                  Colors.textPrimary,
-                                  Colors.textPrimaryDark,
-                                  isDarkMode
-                                ),
-                        },
+                        category === cat.key && styles.categoryTextSelected,
                       ]}
                     >
                       {cat.label}
@@ -266,73 +454,54 @@ const AddPOIModal = ({
               </View>
             </View>
 
-            {/* Descrição */}
+            {/* ✅ DESCRIÇÃO */}
             <View style={styles.inputGroup}>
-              <Text
-                style={[
-                  styles.label,
-                  {
-                    color: ColorUtils.getThemeColor(
-                      Colors.textPrimary,
-                      Colors.textPrimaryDark,
-                      isDarkMode
-                    ),
-                  },
-                ]}
-              >
-                Descrição
-              </Text>
+              <Text style={styles.label}>Descrição</Text>
               <TextInput
                 style={[
                   styles.textArea,
-                  {
-                    backgroundColor: ColorUtils.getThemeColor(
-                      Colors.backgroundSecondary,
-                      Colors.backgroundSecondaryDark,
-                      isDarkMode
-                    ),
-                    borderColor: ColorUtils.getThemeColor(
-                      Colors.gray300,
-                      Colors.gray600,
-                      isDarkMode
-                    ),
-                    color: ColorUtils.getThemeColor(
-                      Colors.textPrimary,
-                      Colors.textPrimaryDark,
-                      isDarkMode
-                    ),
-                  },
+                  errors.description && styles.textAreaError,
                 ]}
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={handleDescriptionChange}
                 placeholder="Descreva este ponto de interesse..."
-                placeholderTextColor={ColorUtils.getThemeColor(
-                  Colors.textMuted,
-                  Colors.textMutedDark,
-                  isDarkMode
-                )}
+                placeholderTextColor={themedColors.textMuted}
                 multiline
                 numberOfLines={4}
                 maxLength={200}
                 textAlignVertical="top"
               />
+              {errors.description && (
+                <Text style={styles.errorText}>{errors.description}</Text>
+              )}
               <Text
                 style={[
                   styles.charCount,
-                  {
-                    color: ColorUtils.getThemeColor(
-                      Colors.textMuted,
-                      Colors.textMutedDark,
-                      isDarkMode
-                    ),
-                  },
+                  getCharCountStyle(description.length, 200),
                 ]}
               >
                 {description.length}/200
               </Text>
             </View>
+
+            {/* ✅ ERROS DE VALIDAÇÃO GERAL */}
+            {(errors.location || errors.trek) && (
+              <View style={styles.debugInfo}>
+                {errors.location && (
+                  <Text style={[styles.debugText, styles.debugError]}>
+                    ❌ Localização: {errors.location}
+                  </Text>
+                )}
+                {errors.trek && (
+                  <Text style={[styles.debugText, styles.debugError]}>
+                    ❌ Trilha: {errors.trek}
+                  </Text>
+                )}
+              </View>
+            )}
           </ScrollView>
 
+          {/* ✅ FOOTER */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
@@ -341,22 +510,33 @@ const AddPOIModal = ({
             >
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.button,
                 styles.saveButton,
-                {
-                  opacity: !name.trim() || loading ? 0.6 : 1,
-                },
+                canSave ? styles.saveButtonEnabled : styles.saveButtonDisabled,
               ]}
               onPress={handleSave}
-              disabled={loading || !name.trim()}
+              disabled={!canSave}
               activeOpacity={0.8}
             >
               {loading ? (
-                <ActivityIndicator size={20} color={Colors.white} />
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size={20} color={Colors.white} />
+                  <Text style={styles.saveButtonText}>Salvando...</Text>
+                </View>
               ) : (
-                <Text style={styles.saveButtonText}>Salvar POI</Text>
+                <>
+                  <Icon
+                    name={canSave ? 'check' : 'lock'}
+                    size={18}
+                    color={Colors.white}
+                  />
+                  <Text style={styles.saveButtonText}>
+                    {canSave ? 'Salvar POI' : 'Dados inválidos'}
+                  </Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -365,125 +545,5 @@ const AddPOIModal = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  container: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray200,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    padding: 20,
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: Colors.blue500 + '10',
-    borderRadius: 8,
-  },
-  locationText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontFamily: 'monospace',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    textAlignVertical: 'top',
-    minHeight: 100,
-  },
-  charCount: {
-    textAlign: 'right',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  categoryText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButton: {
-    backgroundColor: Colors.gray300,
-  },
-  cancelButtonText: {
-    color: Colors.gray700,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  saveButton: {
-    backgroundColor: Colors.blue500,
-  },
-  saveButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-});
 
 export default AddPOIModal;

@@ -1,108 +1,48 @@
 // src/components/MapControls/MapControls.styles.js
-import { Dimensions, StyleSheet } from 'react-native';
+import { Platform, StatusBar, StyleSheet } from 'react-native';
 import { Colors, ColorUtils } from '../../theme/theme';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+export const createStyles = isDarkMode => {
+  const themedColors = {
+    background: ColorUtils.getThemeColor(
+      Colors.backgroundPrimary,
+      Colors.backgroundPrimaryDark,
+      isDarkMode
+    ),
+    backgroundSecondary: ColorUtils.getThemeColor(
+      Colors.backgroundSecondary,
+      Colors.backgroundSecondaryDark,
+      isDarkMode
+    ),
+    text: ColorUtils.getThemeColor(
+      Colors.textPrimary,
+      Colors.textPrimaryDark,
+      isDarkMode
+    ),
+    textMuted: ColorUtils.getThemeColor(
+      Colors.textMuted,
+      Colors.textMutedDark,
+      isDarkMode
+    ),
+    border: ColorUtils.getThemeColor(
+      Colors.gray300,
+      Colors.gray600,
+      isDarkMode
+    ),
+    shadow: isDarkMode ? Colors.shadowDark : Colors.shadowMedium,
+    overlay: isDarkMode
+      ? Colors.overlayBackground
+      : Colors.overlayBackgroundLight,
+  };
 
-export const createStyles = (isDarkMode, isRecording = false) =>
-  StyleSheet.create({
-    // ✅ BOTÃO DO MENU MELHORADO
-    menuButton: {
+  return StyleSheet.create({
+    // ========== CONTROLES PRINCIPAIS ==========
+    rightControls: {
       position: 'absolute',
-      top: 60,
-      left: 20,
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.backgroundSecondary + 'F0',
-        Colors.backgroundSecondaryDark + 'F0',
-        isDarkMode
-      ),
-      justifyContent: 'center',
+      right: 16,
       alignItems: 'center',
-      shadowColor: Colors.black,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-      borderWidth: 1,
-      borderColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
-    },
-    menuButtonActive: {
-      backgroundColor: Colors.blue500,
-      transform: [{ scale: 1.05 }],
-    },
-    notificationBadge: {
-      position: 'absolute',
-      top: -4,
-      right: -4,
-      backgroundColor: Colors.errorRed,
-      borderRadius: 10,
-      minWidth: 20,
-      height: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: Colors.white,
-    },
-    notificationBadgeText: {
-      color: Colors.white,
-      fontSize: 10,
-      fontWeight: 'bold',
-    },
-
-    // ✅ INDICADOR DE STATUS MELHORADO
-    statusIndicator: {
-      position: 'absolute',
-      top: 120,
-      left: 20,
-      right: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 12,
-      shadowColor: Colors.black,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 5,
-    },
-    statusContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    recordingDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: Colors.white,
-      marginRight: 8,
-    },
-    statusText: {
-      color: Colors.white,
-      fontSize: 14,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    statusSubtext: {
-      color: Colors.white,
-      fontSize: 12,
-      marginTop: 4,
-      textAlign: 'center',
-      opacity: 0.9,
-    },
-
-    // ✅ CONTROLES LATERAIS MELHORADOS
-    controlsContainer: {
-      position: 'absolute',
-      top: 180,
-      right: 20,
-      gap: 12,
+      zIndex: 1000,
+      top: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 20,
     },
     controlButton: {
       width: 48,
@@ -110,256 +50,257 @@ export const createStyles = (isDarkMode, isRecording = false) =>
       borderRadius: 24,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: Colors.black,
+      borderWidth: 1,
+      backgroundColor: themedColors.background,
+      borderColor: themedColors.border,
+      shadowColor: themedColors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
       shadowRadius: 4,
       elevation: 5,
     },
-    zoomButton: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.gray600,
-        Colors.gray700,
-        isDarkMode
-      ),
-    },
-    publicTrailsButton: {
-      position: 'relative',
-    },
-    locationButton: {
-      backgroundColor: Colors.blue500,
-    },
     disabledButton: {
       opacity: 0.5,
-      shadowOpacity: 0.1,
-      elevation: 2,
     },
-
-    // ✅ BOTÃO DE GRAVAÇÃO CENTRAL MELHORADO
-    recordingContainer: {
+    badge: {
       position: 'absolute',
-      bottom: 40,
-      alignSelf: 'center',
-      alignItems: 'center',
-    },
-    recordButton: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
       backgroundColor: Colors.errorRed,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: Colors.black,
+      paddingHorizontal: 4,
+    },
+    badgeText: {
+      color: Colors.white,
+      fontSize: 10,
+      fontWeight: '600',
+    },
+
+    // ========== CONTROLES INFERIORES ==========
+    bottomControls: {
+      position: 'absolute',
+      bottom: Platform.OS === 'ios' ? 40 : 20,
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    infoPanel: {
+      flex: 1,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 25,
+      borderWidth: 1,
+      marginRight: 12,
+      backgroundColor: themedColors.background,
+      borderColor: themedColors.border,
+      shadowColor: themedColors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+      justifyContent: 'center',
+    },
+    recordButton: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginHorizontal: 8,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 6,
       elevation: 8,
-      marginBottom: 8,
-      borderWidth: 4,
-      borderColor: Colors.white,
     },
-    recordButtonActive: {
-      backgroundColor: Colors.orange500,
-      transform: [{ scale: 1.1 }],
-    },
-    recordButtonSaving: {
-      backgroundColor: Colors.gray500,
-      transform: [{ scale: 1 }],
-    },
-    recordingLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-      textAlign: 'center',
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.white + 'E6',
-        Colors.gray800 + 'E6',
-        isDarkMode
-      ),
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
+    menuButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      marginLeft: 12,
+      backgroundColor: themedColors.background,
+      borderColor: themedColors.border,
+      shadowColor: themedColors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
     },
 
-    // ✅ MODAL MELHORADO
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-start',
+    // ========== STATUS ==========
+    recordingStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    modalContent: {
-      width: screenWidth * 0.8,
-      height: screenHeight,
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.backgroundPrimary,
-        Colors.backgroundPrimaryDark,
-        isDarkMode
-      ),
-      shadowColor: Colors.black,
-      shadowOffset: { width: 2, height: 0 },
+    recordingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: Colors.errorRed,
+      marginRight: 8,
+    },
+    recordingText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: Colors.errorRed,
+    },
+    savingStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    savingText: {
+      fontSize: 14,
+      marginLeft: 8,
+      color: themedColors.text,
+    },
+    loadingStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 14,
+      marginLeft: 8,
+      color: themedColors.text,
+    },
+    normalStatus: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statusText: {
+      fontSize: 14,
+      marginLeft: 8,
+      color: themedColors.text,
+    },
+    separator: {
+      fontSize: 14,
+      marginHorizontal: 8,
+      color: themedColors.textMuted,
+    },
+
+    // ========== PAINÉIS EXPANDIDOS ==========
+    expandedPanel: {
+      position: 'absolute',
+      top: Platform.OS === 'ios' ? 120 : StatusBar.currentHeight + 80,
+      left: 16,
+      right: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      backgroundColor: themedColors.background,
+      borderColor: themedColors.border,
+      shadowColor: themedColors.shadow,
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 10,
+      zIndex: 2000,
     },
-    modalHeader: {
+    panelHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 20,
-      paddingTop: 60,
-      borderBottomWidth: 1,
-      borderBottomColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
-    },
-    modalTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-    },
-    modalCloseButton: {
-      padding: 4,
-    },
-
-    // ✅ STATUS DE AUTENTICAÇÃO MELHORADO
-    authStatus: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      margin: 20,
       padding: 16,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
+      borderBottomWidth: 1,
+      borderBottomColor: themedColors.border,
     },
-    authStatusIcon: {
-      marginRight: 12,
-    },
-    authStatusInfo: {
-      flex: 1,
-    },
-    authStatusText: {
-      fontSize: 16,
+    panelTitle: {
+      fontSize: 18,
       fontWeight: '600',
-      marginBottom: 2,
-    },
-    authStatusSubtext: {
-      fontSize: 12,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-    },
-
-    // ✅ OPÇÕES DO MENU MELHORADAS
-    menuOptions: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    menuOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      marginBottom: 8,
-      borderRadius: 12,
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.backgroundSecondary,
-        Colors.backgroundSecondaryDark,
-        isDarkMode
-      ),
-      borderWidth: 1,
-      borderColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
-    },
-    menuOptionIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    menuOptionContent: {
-      flex: 1,
-    },
-    menuOptionText: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-      marginBottom: 2,
-    },
-    menuOptionSubtext: {
-      fontSize: 12,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-    },
-    trailsBadge: {
-      backgroundColor: Colors.successGreen,
-      borderRadius: 12,
-      minWidth: 24,
-      height: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 8,
-    },
-    trailsBadgeText: {
-      color: Colors.white,
-      fontSize: 12,
-      fontWeight: 'bold',
-    },
-
-    // ✅ FOOTER DO MODAL
-    modalFooter: {
-      padding: 20,
-      borderTopWidth: 1,
-      borderTopColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
+      color: themedColors.text,
     },
     closeButton: {
+      padding: 4,
+    },
+    panelContent: {
+      padding: 16,
+    },
+
+    // ========== ESTATÍSTICAS ==========
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    statLabel: {
+      flex: 1,
+      fontSize: 14,
+      marginLeft: 12,
+      color: themedColors.textMuted,
+    },
+    statValue: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+
+    // ========== BOTÕES DE AÇÃO ==========
+    actionButtonsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 16,
+      flexWrap: 'wrap',
+    },
+    actionButton: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 12,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       borderRadius: 8,
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.gray100,
-        Colors.gray800,
-        isDarkMode
-      ),
+      borderWidth: 1,
     },
-    closeButtonText: {
+    actionButtonText: {
       fontSize: 14,
       fontWeight: '500',
-      color: Colors.gray500,
       marginLeft: 8,
     },
+
+    // ========== LOGIN/MENU ==========
+    loginPrompt: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    loginTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 12,
+      marginBottom: 8,
+      color: themedColors.text,
+    },
+    loginSubtitle: {
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+      color: themedColors.textMuted,
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    userText: {
+      fontSize: 16,
+      fontWeight: '500',
+      marginLeft: 12,
+      color: themedColors.text,
+    },
+
+    // ========== OVERLAY ==========
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: themedColors.overlay,
+      zIndex: 1500,
+    },
   });
+};

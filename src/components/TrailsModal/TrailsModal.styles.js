@@ -2,352 +2,331 @@
 import { StyleSheet } from 'react-native';
 import { Colors, ColorUtils } from '../../theme/theme';
 
-export const createStyles = isDarkMode =>
-  StyleSheet.create({
-    modalOverlay: {
+export const createStyles = isDarkMode => {
+  const themedColors = {
+    background: ColorUtils.getThemeColor(
+      Colors.backgroundPrimary,
+      Colors.backgroundPrimaryDark,
+      isDarkMode
+    ),
+    backgroundSecondary: ColorUtils.getThemeColor(
+      Colors.backgroundSecondary,
+      Colors.backgroundSecondaryDark,
+      isDarkMode
+    ),
+    text: ColorUtils.getThemeColor(
+      Colors.textPrimary,
+      Colors.textPrimaryDark,
+      isDarkMode
+    ),
+    textMuted: ColorUtils.getThemeColor(
+      Colors.textMuted,
+      Colors.textMutedDark,
+      isDarkMode
+    ),
+    border: ColorUtils.getThemeColor(
+      Colors.gray300,
+      Colors.gray600,
+      isDarkMode
+    ),
+  };
+
+  return StyleSheet.create({
+    // ========== MODAL ==========
+    overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 20,
+      backgroundColor: Colors.overlayBackground,
+      justifyContent: 'flex-end',
     },
-    modalContent: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.backgroundPrimary,
-        Colors.backgroundPrimaryDark,
-        isDarkMode
-      ),
-      borderRadius: 16,
-      width: '100%',
-      maxHeight: '80%',
-      paddingVertical: 20,
-      paddingHorizontal: 16,
-      shadowColor: Colors.black,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 8,
+    container: {
+      height: '90%',
+      backgroundColor: themedColors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
     },
-    modalHeader: {
+
+    // ========== CABEÇALHO ==========
+    header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
-      paddingBottom: 12,
+      padding: 20,
       borderBottomWidth: 1,
-      borderBottomColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
+      borderBottomColor: themedColors.border,
     },
-    modalTitle: {
+    title: {
       fontSize: 20,
       fontWeight: '600',
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
+      color: themedColors.text,
     },
     closeButton: {
       padding: 4,
     },
 
-    // Tabs
-    tabContainer: {
+    // ========== BANNER DE CONECTIVIDADE ==========
+    connectivityBanner: {
+      backgroundColor: Colors.errorRed,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
       flexDirection: 'row',
-      marginBottom: 16,
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.gray100,
-        Colors.gray800,
-        isDarkMode
-      ),
-      borderRadius: 8,
-      padding: 4,
-    },
-    tabButton: {
-      flex: 1,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 6,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    tabButtonActive: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.white,
-        Colors.gray700,
-        isDarkMode
-      ),
-      shadowColor: Colors.black,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    tabButtonText: {
+    connectivityText: {
+      color: Colors.white,
       fontSize: 14,
-      fontWeight: '500',
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-    },
-    tabButtonTextActive: {
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-    },
-    refreshButton: {
-      padding: 8,
+      fontWeight: '600',
       marginLeft: 8,
     },
 
-    // Header das trilhas públicas
-    publicTrailsHeader: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.blue500 + '10',
-        Colors.blue500 + '20',
-        isDarkMode
-      ),
-      padding: 16,
-      marginBottom: 8,
-      borderRadius: 8,
-      marginHorizontal: 16,
-    },
-    publicTrailsInfo: {
-      marginBottom: 12,
-    },
-    publicTrailsTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: Colors.blue500,
-      marginBottom: 4,
-    },
-    publicTrailsSubtitle: {
-      fontSize: 14,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-    },
-    publicTrailsControls: {
+    // ========== TABS ==========
+    tabContainer: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
+      backgroundColor: themedColors.backgroundSecondary,
+      margin: 20,
+      borderRadius: 12,
+      padding: 4,
     },
-    toggleButton: {
+    tab: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-      gap: 4,
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
     },
-    toggleButtonText: {
+    activeTab: {
+      backgroundColor: Colors.verdeFlorestaProfundo,
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themedColors.textMuted,
+      marginLeft: 8,
+    },
+    activeTabText: {
       color: Colors.white,
-      fontSize: 12,
-      fontWeight: '500',
     },
 
-    // Lista vazia
-    emptyContainer: {
+    // ========== CONTEÚDO ==========
+    content: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    tabContent: {
+      flex: 1,
+    },
+
+    // ========== PROMPT DE LOGIN ==========
+    loginPrompt: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: 40,
+      paddingHorizontal: 40,
     },
-    emptyText: {
-      fontSize: 16,
-      textAlign: 'center',
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
+    loginPromptTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themedColors.text,
       marginTop: 16,
-      lineHeight: 22,
+      marginBottom: 8,
     },
-    emptySubtext: {
+    loginPromptText: {
       fontSize: 14,
+      color: themedColors.textMuted,
       textAlign: 'center',
-      color: ColorUtils.getThemeColor(
-        Colors.blue500,
-        Colors.blue400,
-        isDarkMode
-      ),
-      marginTop: 12,
-      fontStyle: 'italic',
+      lineHeight: 20,
     },
 
-    // Item da trilha
-    trailItem: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.backgroundSecondary,
-        Colors.backgroundSecondaryDark,
-        isDarkMode
-      ),
-      borderRadius: 12,
+    // ========== CONTROLES PÚBLICOS ==========
+    publicControlsHeader: {
+      marginBottom: 16,
       padding: 16,
+      backgroundColor: themedColors.backgroundSecondary,
+      borderRadius: 12,
+    },
+
+    // ========== ITENS DE TRILHA ==========
+    trailItem: {
+      backgroundColor: themedColors.backgroundSecondary,
+      borderRadius: 12,
       marginBottom: 12,
-      marginHorizontal: 16,
-      borderWidth: 1,
-      borderColor: ColorUtils.getThemeColor(
-        Colors.gray200,
-        Colors.gray700,
-        isDarkMode
-      ),
+      overflow: 'hidden',
     },
     trailHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
+      alignItems: 'center',
+      padding: 16,
     },
-    trailInfo: {
+    trailHeaderLeft: {
       flex: 1,
-      marginRight: 12,
     },
-    trailName: {
+    trailHeaderRight: {
+      marginLeft: 12,
+    },
+    trailTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    trailTitle: {
       fontSize: 16,
       fontWeight: '600',
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-      marginBottom: 4,
+      color: themedColors.text,
+      flex: 1,
+      marginRight: 8,
     },
-    trailDate: {
-      fontSize: 14,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
+    statusContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    badgeContainer: {
+    statusText: {
+      fontSize: 12,
+      color: themedColors.textMuted,
+      marginLeft: 4,
+    },
+    trailMetrics: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginTop: 4,
-      gap: 4,
+      gap: 16,
     },
-    syncBadge: {
+    metric: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.successGreen + '20',
-        Colors.successGreen + '30',
-        isDarkMode
-      ),
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
-      alignSelf: 'flex-start',
     },
-    syncText: {
+    metricText: {
       fontSize: 12,
-      color: Colors.successGreen,
+      color: themedColors.textMuted,
       marginLeft: 4,
-      fontWeight: '500',
-    },
-    editInput: {
-      backgroundColor: ColorUtils.getThemeColor(
-        Colors.white,
-        Colors.gray800,
-        isDarkMode
-      ),
-      borderWidth: 1,
-      borderColor: Colors.blue500,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      fontSize: 16,
-      color: ColorUtils.getThemeColor(
-        Colors.textPrimary,
-        Colors.textPrimaryDark,
-        isDarkMode
-      ),
-    },
-    visibilityContainer: {
-      alignItems: 'center',
-    },
-    visibilityLabel: {
-      fontSize: 12,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-      marginBottom: 4,
     },
 
-    // Estatísticas da trilha
-    trailStats: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    // ========== DETALHES DA TRILHA ==========
+    trailDetails: {
+      borderTopWidth: 1,
+      borderTopColor: themedColors.border,
+      padding: 16,
+    },
+    detailSection: {
       marginBottom: 12,
-      gap: 12,
     },
-    statItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    detailLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: themedColors.textMuted,
+      marginBottom: 4,
     },
-    statText: {
+    detailText: {
       fontSize: 14,
-      color: ColorUtils.getThemeColor(
-        Colors.textMuted,
-        Colors.textMutedDark,
-        isDarkMode
-      ),
-      marginLeft: 4,
-      fontWeight: '500',
+      color: themedColors.text,
+      lineHeight: 20,
     },
 
-    // Ações da trilha
-    trailActions: {
+    // ========== CONTROLES ==========
+    trailControls: {
+      marginTop: 16,
+    },
+    controlRow: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      flexWrap: 'wrap',
-      gap: 8,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    controlLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: themedColors.text,
+      flex: 1,
+    },
+
+    // ========== BOTÕES DE AÇÃO ==========
+    actionButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 12,
     },
     actionButton: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 6,
-      minWidth: 40,
       justifyContent: 'center',
-    },
-    actionButtonText: {
-      color: Colors.white,
-      fontSize: 12,
-      fontWeight: '500',
-      marginLeft: 4,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      gap: 6,
     },
     editButton: {
-      backgroundColor: Colors.blue500,
-    },
-    shareButton: {
-      backgroundColor: Colors.purple500,
-    },
-    exportButton: {
-      backgroundColor: Colors.orange500,
-    },
-    detailsButton: {
       backgroundColor: Colors.infoBlue,
     },
     deleteButton: {
       backgroundColor: Colors.errorRed,
     },
-    saveButton: {
-      backgroundColor: Colors.successGreen,
+    actionButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: Colors.white,
     },
-    cancelButton: {
-      backgroundColor: Colors.gray500,
+
+    // ========== LISTA VAZIA ==========
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 40,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: themedColors.text,
+      marginTop: 16,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: themedColors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+
+    // ========== FOOTER ==========
+    footer: {
+      borderTopWidth: 1,
+      borderTopColor: themedColors.border,
+      padding: 20,
+      backgroundColor: themedColors.backgroundSecondary,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    statusItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statusText: {
+      fontSize: 12,
+      color: themedColors.textMuted,
+      marginLeft: 6,
+    },
+    refreshButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 6,
+      backgroundColor: ColorUtils.withOpacity(
+        Colors.verdeFlorestaProfundo,
+        0.1
+      ),
+    },
+    refreshButtonText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: Colors.verdeFlorestaProfundo,
+      marginLeft: 4,
     },
   });
+};

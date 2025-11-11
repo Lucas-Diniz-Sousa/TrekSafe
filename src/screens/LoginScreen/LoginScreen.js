@@ -1,7 +1,10 @@
 // src/screens/LoginScreen/LoginScreen.js
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +19,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, ColorUtils } from '../../theme/theme';
 import { createStyles } from './LoginScreen.styles';
+
+const { width, height } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation, onLoginSuccess }) => {
   // Estados do formulário
@@ -36,10 +41,42 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [nameError, setNameError] = useState('');
 
+  // Estado para controle da imagem
+  const [imageError, setImageError] = useState(false);
+
+  // Animações simplificadas
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const formSlideAnim = useRef(new Animated.Value(0)).current;
+
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === 'dark';
   const styles = createStyles(isDarkMode);
   const { login, register, recoverPassword, authState } = useAuth();
+
+  // Animação inicial simplificada
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Animação de transição entre modos
+  const animateFormTransition = () => {
+    Animated.sequence([
+      Animated.timing(formSlideAnim, {
+        toValue: isRegisterMode ? -10 : 10,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(formSlideAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   // Validações
   const validateEmail = email => {
@@ -52,7 +89,6 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   };
 
   const validateName = name => {
-    console.log('Nome dessa merda', name);
     return name.trim().length >= 2;
   };
 
@@ -78,7 +114,6 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
       setPasswordError('');
     }
 
-    // Revalidar confirmação de senha se estiver preenchida
     if (isRegisterMode && confirmPassword && text !== confirmPassword) {
       setConfirmPasswordError('Senhas não coincidem');
     } else {
@@ -106,26 +141,14 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
 
   // Alternar entre login e registro
   const toggleMode = () => {
+    animateFormTransition();
     setIsRegisterMode(!isRegisterMode);
-    // Limpar erros e campos específicos do registro
     setNameError('');
     setConfirmPasswordError('');
     if (!isRegisterMode) {
       setName('');
       setConfirmPassword('');
     }
-  };
-
-  // Limpar todos os campos
-  const clearForm = () => {
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setName('');
-    setEmailError('');
-    setPasswordError('');
-    setConfirmPasswordError('');
-    setNameError('');
   };
 
   // Handle Login
@@ -160,40 +183,18 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
     }
   };
 
-  // Handle Register - VERSÃO COM DEBUG
-  // Handle Register - VERSÃO CORRIGIDA
+  // Handle Register
   const handleRegister = async () => {
-    console.log('🔍 Iniciando processo de registro...');
-    console.log('📝 Dados do formulário:', {
-      name: name.trim(),
-      email: email.trim(),
-      password: '***',
-      isFormValid: isRegisterFormValid,
-    });
-
-    if (!isRegisterFormValid) {
-      console.log('❌ Formulário inválido:', {
-        nameError,
-        emailError,
-        passwordError,
-        confirmPasswordError,
-      });
-      return;
-    }
+    if (!isRegisterFormValid) return;
 
     setIsLoading(true);
 
     try {
-      console.log('📞 Chamando função register...');
-
-      // ✅ CORREÇÃO: Passar como objeto userData
       const result = await register({
         name: name.trim(),
         email: email.trim(),
         password: password,
       });
-
-      console.log('📥 Resultado do registro:', result);
 
       if (result.success) {
         Alert.alert(
@@ -203,7 +204,6 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
             {
               text: 'OK',
               onPress: () => {
-                console.log('✅ Navegando para Map...');
                 if (onLoginSuccess) {
                   onLoginSuccess();
                 } else if (navigation) {
@@ -221,10 +221,6 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
         );
       }
     } catch (error) {
-      console.error('💥 Erro completo no registro:', error);
-      console.error('💥 Stack trace:', error.stack);
-      console.error('💥 Message:', error.message);
-
       Alert.alert(
         'Erro no registro',
         error.message || 'Erro ao criar conta. Tente novamente.',
@@ -235,7 +231,7 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
     }
   };
 
-  // Handle principal (login ou registro)
+  // Handle principal
   const handleSubmit = () => {
     if (isRegisterMode) {
       handleRegister();
@@ -310,32 +306,30 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
   return (
     <View style={styles.container}>
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={ColorUtils.getThemeColor(
-          Colors.backgroundPrimary,
-          Colors.backgroundPrimaryDark,
-          isDarkMode
-        )}
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
       />
 
-      {/* Botão Voltar */}
+      {/* Background simplificado */}
+      <View style={styles.backgroundGradient} />
+
+      {/* Elementos decorativos simplificados */}
+      <View style={styles.decorativeElements}>
+        <View style={styles.mountain1} />
+        <View style={styles.mountain2} />
+      </View>
+
+      {/* Botão Voltar
       {navigation && (
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
-          <Icon
-            name="arrow-left"
-            size={24}
-            color={ColorUtils.getThemeColor(
-              Colors.textPrimary,
-              Colors.textPrimaryDark,
-              isDarkMode
-            )}
-          />
+          <Icon name="arrow-left" size={24} color={Colors.white} />
         </TouchableOpacity>
-      )}
+      )} */}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -348,79 +342,178 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.content}>
-            {/* Logo */}
+          <Animated.View
+            style={[
+              styles.content,
+              {
+                opacity: fadeAnim,
+              },
+            ]}
+          >
+            {/* Logo Section Compacta */}
             <View style={styles.logoContainer}>
-              <View style={styles.logoIcon}>
-                <Icon
-                  name="hiking"
-                  size={80}
-                  color={Colors.verdeFlorestaProfundo}
-                />
+              <View style={styles.logoWrapper}>
+                {!imageError ? (
+                  <Image
+                    source={require('../../img/Logo.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <View style={styles.logoFallback}>
+                    <Icon name="mountain" size={40} color={Colors.white} />
+                  </View>
+                )}
               </View>
+
               <Text style={styles.logoText}>TrekSafe</Text>
               <Text style={styles.logoSubtext}>
                 {isRegisterMode
-                  ? 'Junte-se à comunidade'
-                  : 'Explore com segurança'}
+                  ? 'Comece sua jornada'
+                  : 'Descubra trilhas incríveis'}
               </Text>
             </View>
 
-            {/* Toggle de Modo */}
-            <View style={styles.modeToggleContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.modeToggleButton,
-                  !isRegisterMode && styles.modeToggleButtonActive,
-                ]}
-                onPress={() => !isRegisterMode || toggleMode()}
-                activeOpacity={0.8}
-              >
-                <Text
+            {/* Card Container Compacto */}
+            <Animated.View
+              style={[
+                styles.cardContainer,
+                {
+                  transform: [{ translateY: formSlideAnim }],
+                },
+              ]}
+            >
+              {/* Mode Toggle */}
+              <View style={styles.modeToggleContainer}>
+                <TouchableOpacity
                   style={[
-                    styles.modeToggleText,
-                    !isRegisterMode && styles.modeToggleTextActive,
+                    styles.modeToggleButton,
+                    !isRegisterMode && styles.modeToggleButtonActive,
                   ]}
+                  onPress={() => !isRegisterMode || toggleMode()}
+                  activeOpacity={0.8}
                 >
-                  Entrar
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modeToggleButton,
-                  isRegisterMode && styles.modeToggleButtonActive,
-                ]}
-                onPress={() => isRegisterMode || toggleMode()}
-                activeOpacity={0.8}
-              >
-                <Text
+                  <Icon
+                    name="login"
+                    size={16}
+                    color={
+                      !isRegisterMode
+                        ? Colors.white
+                        : isDarkMode
+                        ? Colors.gray300
+                        : Colors.gray600
+                    }
+                    style={styles.modeToggleIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.modeToggleText,
+                      !isRegisterMode && styles.modeToggleTextActive,
+                    ]}
+                  >
+                    Entrar
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.modeToggleText,
-                    isRegisterMode && styles.modeToggleTextActive,
+                    styles.modeToggleButton,
+                    isRegisterMode && styles.modeToggleButtonActive,
                   ]}
+                  onPress={() => isRegisterMode || toggleMode()}
+                  activeOpacity={0.8}
                 >
-                  Criar Conta
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Icon
+                    name="account-plus"
+                    size={16}
+                    color={
+                      isRegisterMode
+                        ? Colors.white
+                        : isDarkMode
+                        ? Colors.gray300
+                        : Colors.gray600
+                    }
+                    style={styles.modeToggleIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.modeToggleText,
+                      isRegisterMode && styles.modeToggleTextActive,
+                    ]}
+                  >
+                    Criar Conta
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-            {/* Formulário */}
-            <View style={styles.formContainer}>
-              {/* Campo Nome (apenas no registro) */}
-              {isRegisterMode && (
+              {/* Form */}
+              <View style={styles.formContainer}>
+                {/* Campo Nome */}
+                {isRegisterMode && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Nome Completo</Text>
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        nameError && styles.inputWrapperError,
+                      ]}
+                    >
+                      <Icon
+                        name="account-outline"
+                        size={20}
+                        color={
+                          nameError
+                            ? Colors.errorRed
+                            : ColorUtils.getThemeColor(
+                                Colors.gray500,
+                                Colors.gray400,
+                                isDarkMode
+                              )
+                        }
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={styles.textInput}
+                        value={name}
+                        onChangeText={handleNameChange}
+                        placeholder="Digite seu nome completo"
+                        placeholderTextColor={ColorUtils.getThemeColor(
+                          Colors.inputPlaceholder,
+                          Colors.gray400,
+                          isDarkMode
+                        )}
+                        autoCapitalize="words"
+                        autoCorrect={false}
+                        autoComplete="name"
+                      />
+                    </View>
+                    {nameError ? (
+                      <View style={styles.errorContainer}>
+                        <Icon
+                          name="alert-circle"
+                          size={14}
+                          color={Colors.errorRed}
+                        />
+                        <Text style={styles.errorText}>{nameError}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+
+                {/* Campo Email */}
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Nome Completo</Text>
+                  <Text style={styles.inputLabel}>Email</Text>
                   <View
                     style={[
                       styles.inputWrapper,
-                      nameError && styles.inputWrapperError,
+                      emailError && styles.inputWrapperError,
                     ]}
                   >
                     <Icon
-                      name="account-outline"
+                      name="email-outline"
                       size={20}
                       color={
-                        nameError
+                        emailError
                           ? Colors.errorRed
                           : ColorUtils.getThemeColor(
                               Colors.gray500,
@@ -432,147 +525,46 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                     />
                     <TextInput
                       style={styles.textInput}
-                      value={name}
-                      onChangeText={handleNameChange}
-                      placeholder="Digite seu nome completo"
+                      value={email}
+                      onChangeText={handleEmailChange}
+                      placeholder="Digite seu email"
                       placeholderTextColor={ColorUtils.getThemeColor(
                         Colors.inputPlaceholder,
                         Colors.gray400,
                         isDarkMode
                       )}
-                      autoCapitalize="words"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                       autoCorrect={false}
-                      autoComplete="name"
+                      autoComplete="email"
                     />
                   </View>
-                  {nameError ? (
-                    <Text style={styles.errorText}>{nameError}</Text>
+                  {emailError ? (
+                    <View style={styles.errorContainer}>
+                      <Icon
+                        name="alert-circle"
+                        size={14}
+                        color={Colors.errorRed}
+                      />
+                      <Text style={styles.errorText}>{emailError}</Text>
+                    </View>
                   ) : null}
                 </View>
-              )}
 
-              {/* Campo Email */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    emailError && styles.inputWrapperError,
-                  ]}
-                >
-                  <Icon
-                    name="email-outline"
-                    size={20}
-                    color={
-                      emailError
-                        ? Colors.errorRed
-                        : ColorUtils.getThemeColor(
-                            Colors.gray500,
-                            Colors.gray400,
-                            isDarkMode
-                          )
-                    }
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    value={email}
-                    onChangeText={handleEmailChange}
-                    placeholder="Digite seu email"
-                    placeholderTextColor={ColorUtils.getThemeColor(
-                      Colors.inputPlaceholder,
-                      Colors.gray400,
-                      isDarkMode
-                    )}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="email"
-                  />
-                </View>
-                {emailError ? (
-                  <Text style={styles.errorText}>{emailError}</Text>
-                ) : null}
-              </View>
-
-              {/* Campo Senha */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Senha</Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    passwordError && styles.inputWrapperError,
-                  ]}
-                >
-                  <Icon
-                    name="lock-outline"
-                    size={20}
-                    color={
-                      passwordError
-                        ? Colors.errorRed
-                        : ColorUtils.getThemeColor(
-                            Colors.gray500,
-                            Colors.gray400,
-                            isDarkMode
-                          )
-                    }
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    value={password}
-                    onChangeText={handlePasswordChange}
-                    placeholder={
-                      isRegisterMode
-                        ? 'Crie uma senha (min. 6 caracteres)'
-                        : 'Digite sua senha'
-                    }
-                    placeholderTextColor={ColorUtils.getThemeColor(
-                      Colors.inputPlaceholder,
-                      Colors.gray400,
-                      isDarkMode
-                    )}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoComplete="password"
-                  />
-                  <TouchableOpacity
-                    style={styles.passwordToggle}
-                    onPress={() => setShowPassword(!showPassword)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={ColorUtils.getThemeColor(
-                        Colors.gray500,
-                        Colors.gray400,
-                        isDarkMode
-                      )}
-                    />
-                  </TouchableOpacity>
-                </View>
-                {passwordError ? (
-                  <Text style={styles.errorText}>{passwordError}</Text>
-                ) : null}
-              </View>
-
-              {/* Campo Confirmar Senha (apenas no registro) */}
-              {isRegisterMode && (
+                {/* Campo Senha */}
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Confirmar Senha</Text>
+                  <Text style={styles.inputLabel}>Senha</Text>
                   <View
                     style={[
                       styles.inputWrapper,
-                      confirmPasswordError && styles.inputWrapperError,
+                      passwordError && styles.inputWrapperError,
                     ]}
                   >
                     <Icon
-                      name="lock-check-outline"
+                      name="lock-outline"
                       size={20}
                       color={
-                        confirmPasswordError
+                        passwordError
                           ? Colors.errorRed
                           : ColorUtils.getThemeColor(
                               Colors.gray500,
@@ -584,32 +576,30 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                     />
                     <TextInput
                       style={styles.textInput}
-                      value={confirmPassword}
-                      onChangeText={handleConfirmPasswordChange}
-                      placeholder="Confirme sua senha"
+                      value={password}
+                      onChangeText={handlePasswordChange}
+                      placeholder={
+                        isRegisterMode
+                          ? 'Crie uma senha (min. 6 caracteres)'
+                          : 'Digite sua senha'
+                      }
                       placeholderTextColor={ColorUtils.getThemeColor(
                         Colors.inputPlaceholder,
                         Colors.gray400,
                         isDarkMode
                       )}
-                      secureTextEntry={!showConfirmPassword}
+                      secureTextEntry={!showPassword}
                       autoCapitalize="none"
                       autoCorrect={false}
                       autoComplete="password"
                     />
                     <TouchableOpacity
                       style={styles.passwordToggle}
-                      onPress={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
+                      onPress={() => setShowPassword(!showPassword)}
                       activeOpacity={0.7}
                     >
                       <Icon
-                        name={
-                          showConfirmPassword
-                            ? 'eye-off-outline'
-                            : 'eye-outline'
-                        }
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                         size={20}
                         color={ColorUtils.getThemeColor(
                           Colors.gray500,
@@ -619,82 +609,171 @@ const LoginScreen = ({ navigation, onLoginSuccess }) => {
                       />
                     </TouchableOpacity>
                   </View>
-                  {confirmPasswordError ? (
-                    <Text style={styles.errorText}>{confirmPasswordError}</Text>
+                  {passwordError ? (
+                    <View style={styles.errorContainer}>
+                      <Icon
+                        name="alert-circle"
+                        size={14}
+                        color={Colors.errorRed}
+                      />
+                      <Text style={styles.errorText}>{passwordError}</Text>
+                    </View>
                   ) : null}
                 </View>
-              )}
-            </View>
 
-            {/* Botão Principal */}
-            <TouchableOpacity
-              style={[
-                styles.loginButton,
-                (!isFormValid || isLoading) && styles.loginButtonDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={!isFormValid || isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <Icon name="loading" size={20} color={Colors.white} />
-                  <Text style={styles.loadingText}>
-                    {isRegisterMode ? 'Criando conta...' : 'Entrando...'}
+                {/* Campo Confirmar Senha */}
+                {isRegisterMode && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Confirmar Senha</Text>
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        confirmPasswordError && styles.inputWrapperError,
+                      ]}
+                    >
+                      <Icon
+                        name="lock-check-outline"
+                        size={20}
+                        color={
+                          confirmPasswordError
+                            ? Colors.errorRed
+                            : ColorUtils.getThemeColor(
+                                Colors.gray500,
+                                Colors.gray400,
+                                isDarkMode
+                              )
+                        }
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={styles.textInput}
+                        value={confirmPassword}
+                        onChangeText={handleConfirmPasswordChange}
+                        placeholder="Confirme sua senha"
+                        placeholderTextColor={ColorUtils.getThemeColor(
+                          Colors.inputPlaceholder,
+                          Colors.gray400,
+                          isDarkMode
+                        )}
+                        secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="password"
+                      />
+                      <TouchableOpacity
+                        style={styles.passwordToggle}
+                        onPress={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <Icon
+                          name={
+                            showConfirmPassword
+                              ? 'eye-off-outline'
+                              : 'eye-outline'
+                          }
+                          size={20}
+                          color={ColorUtils.getThemeColor(
+                            Colors.gray500,
+                            Colors.gray400,
+                            isDarkMode
+                          )}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {confirmPasswordError ? (
+                      <View style={styles.errorContainer}>
+                        <Icon
+                          name="alert-circle"
+                          size={14}
+                          color={Colors.errorRed}
+                        />
+                        <Text style={styles.errorText}>
+                          {confirmPasswordError}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+              </View>
+
+              {/* Botão Principal */}
+              <TouchableOpacity
+                style={[
+                  styles.loginButton,
+                  (!isFormValid || isLoading) && styles.loginButtonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={!isFormValid || isLoading}
+                activeOpacity={0.8}
+              >
+                <View style={styles.buttonContent}>
+                  {isLoading ? (
+                    <>
+                      <Icon name="loading" size={18} color={Colors.white} />
+                      <Text style={styles.loginButtonText}>
+                        {isRegisterMode ? 'Criando...' : 'Entrando...'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Icon
+                        name={isRegisterMode ? 'account-plus' : 'hiking'}
+                        size={18}
+                        color={Colors.white}
+                        style={styles.buttonIcon}
+                      />
+                      <Text style={styles.loginButtonText}>
+                        {isRegisterMode ? 'Criar Conta' : 'Entrar'}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Links de ação */}
+              <View style={styles.actionsContainer}>
+                {!isRegisterMode && (
+                  <TouchableOpacity
+                    style={styles.forgotPasswordButton}
+                    onPress={handleForgotPassword}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.forgotPasswordText}>
+                      Esqueci minha senha
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={toggleMode}
+                  activeOpacity={0.8}
+                  style={styles.alternativeButton}
+                >
+                  <Text style={styles.alternativeText}>
+                    {isRegisterMode ? 'Já tem conta? ' : 'Não tem conta? '}
+                    <Text style={styles.alternativeButtonText}>
+                      {isRegisterMode ? 'Entrar' : 'Criar conta'}
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Termos */}
+              {isRegisterMode && (
+                <View style={styles.termsContainer}>
+                  <Text style={styles.termsText}>
+                    Ao criar conta, você aceita nossos{' '}
+                    <Text style={styles.termsLink}>Termos</Text> e{' '}
+                    <Text style={styles.termsLink}>
+                      Política de Privacidade
+                    </Text>
                   </Text>
                 </View>
-              ) : (
-                <Text
-                  style={[
-                    styles.loginButtonText,
-                    !isFormValid && styles.loginButtonTextDisabled,
-                  ]}
-                >
-                  {isRegisterMode ? 'Criar Conta' : 'Entrar'}
-                </Text>
               )}
-            </TouchableOpacity>
-
-            {/* Esqueci a senha (apenas no modo login) */}
-            {!isRegisterMode && (
-              <TouchableOpacity
-                style={styles.forgotPasswordButton}
-                onPress={handleForgotPassword}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.forgotPasswordText}>
-                  Esqueci minha senha
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Texto de alternativa */}
-            <View style={styles.alternativeContainer}>
-              <Text style={styles.alternativeText}>
-                {isRegisterMode ? 'Já tem uma conta?' : 'Não tem uma conta?'}
-              </Text>
-              <TouchableOpacity
-                onPress={toggleMode}
-                activeOpacity={0.8}
-                style={styles.alternativeButton}
-              >
-                <Text style={styles.alternativeButtonText}>
-                  {isRegisterMode ? 'Fazer login' : 'Criar conta'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Termos (apenas no registro) */}
-            {isRegisterMode && (
-              <View style={styles.termsContainer}>
-                <Text style={styles.termsText}>
-                  Ao criar uma conta, você concorda com nossos{' '}
-                  <Text style={styles.termsLink}>Termos de Uso</Text> e{' '}
-                  <Text style={styles.termsLink}>Política de Privacidade</Text>.
-                </Text>
-              </View>
-            )}
-          </View>
+            </Animated.View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

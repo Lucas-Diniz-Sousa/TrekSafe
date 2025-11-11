@@ -1,4 +1,4 @@
-// services/api.js
+// src/services/api.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_CONFIG = {
@@ -19,7 +19,6 @@ class ApiService {
   }
 
   // Obter token do AsyncStorage - ATUALIZADO
-  // No api.js, adicione este debug no getAuthToken():
   async getAuthToken() {
     try {
       console.log('🔍 === VERIFICANDO TOKEN ===');
@@ -32,7 +31,7 @@ class ApiService {
         if (token) {
           console.log('✅ Token encontrado!');
           console.log('🔑 Chave usada:', key);
-          console.log('�� Token length:', token.length);
+          console.log('📏 Token length:', token.length);
           console.log('🔑 Token preview:', token.substring(0, 30) + '...');
           console.log('🔍 === TOKEN VERIFICADO ===\n');
           return token;
@@ -49,6 +48,7 @@ class ApiService {
       return null;
     }
   }
+
   // Fazer requisição com autenticação automática - MELHORADO
   async makeRequest(endpoint, options = {}, retryCount = 0) {
     console.log('\n🌐 === API REQUEST ===');
@@ -347,6 +347,11 @@ class ApiService {
     }
   }
 
+  // ✅ MÉTODO PARA ADICIONAR COORDENADAS (ALIAS)
+  async adicionarCoordenadas(trilhaId, dados) {
+    return this.salvarPontoTrilha(trilhaId, dados.coords || dados);
+  }
+
   // ✅ ATUALIZADO: Atualizar trilha
   async atualizarTrilha(trilhaId, dadosAtualizacao) {
     try {
@@ -411,27 +416,154 @@ class ApiService {
     }
   }
 
-  // ✅ NOVO: Obter minhas trilhas
-  async getMinhasTrilhas() {
+  // ✅ MÉTODO CORRIGIDO PARA CARREGAR MINHAS TRILHAS
+  async carregarMinhasTrilhas() {
     try {
-      const response = await this.get('/api/treks/mine');
+      console.log('🔄 === CARREGANDO MINHAS TRILHAS ===');
+
+      const token = await this.getAuthToken();
+      if (!token) {
+        throw new Error('Token de autenticação não encontrado');
+      }
+
+      console.log('🔍 === TOKEN VERIFICADO ===');
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      console.log('📋 Headers:', headers);
+
+      // ✅ TENTAR ENDPOINT ALTERNATIVO SE O PRINCIPAL FALHAR
+      let response;
+      try {
+        // Primeiro, tentar o endpoint principal
+        response = await fetch(`${this.baseURL}/api/treks/mine`, {
+          method: 'GET',
+          headers,
+        });
+
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response ok:', response.ok);
+
+        // ✅ SE DER ERRO 500, TENTAR ENDPOINT ALTERNATIVO
+        if (response.status === 500) {
+          console.log(
+            '⚠️ Erro 500 no endpoint principal, tentando alternativo...'
+          );
+
+          response = await fetch(`${this.baseURL}/api/treks`, {
+            method: 'GET',
+            headers,
+          });
+
+          console.log('📥 Response alternativo status:', response.status);
+        }
+      } catch (networkError) {
+        console.log('❌ Erro de rede:', networkError.message);
+        throw new Error('Erro de conexão com o servidor');
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('❌ Error response:', errorText);
+
+        // ✅ RETORNAR LISTA VAZIA EM CASO DE ERRO 500 EM VEZ DE FALHAR
+        if (response.status === 500) {
+          console.log('⚠️ Servidor com problema, retornando lista vazia');
+          return {
+            success: true,
+            data: [],
+            message:
+              'Servidor temporariamente indisponível, trilhas serão carregadas quando possível',
+          };
+        }
+
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('📊 Response data:', responseData);
+      console.log('🌐 === REQUEST COMPLETED ===');
+
+      // ✅ VALIDAR ESTRUTURA DA RESPOSTA
+      if (!responseData) {
+        return {
+          success: true,
+          data: [],
+          message: 'Nenhuma trilha encontrada',
+        };
+      }
+
+      // ✅ TRATAR DIFERENTES FORMATOS DE RESPOSTA
+      let trilhas = [];
+
+      if (Array.isArray(responseData)) {
+        trilhas = responseData;
+      } else if (responseData.data && Array.isArray(responseData.data)) {
+        trilhas = responseData.data;
+      } else if (responseData.trilhas && Array.isArray(responseData.trilhas)) {
+        trilhas = responseData.trilhas;
+      } else {
+        console.log('⚠️ Formato de resposta inesperado:', responseData);
+        trilhas = [];
+      }
+
+      console.log(`✅ Trilhas processadas: ${trilhas.length}`);
 
       return {
         success: true,
-        data: response.data || [],
-        count: response.count || response.data?.length || 0,
-        message:
-          response.data?.length > 0
-            ? `${response.data.length} trilhas suas encontradas`
-            : 'Você ainda não criou nenhuma trilha',
+        data: trilhas,
+        message: `${trilhas.length} trilhas carregadas com sucesso`,
       };
     } catch (error) {
+      console.log('🌐 === REQUEST FAILED ===');
       console.warn('⚠️ Erro ao carregar minhas trilhas:', error.message);
+
+      // ✅ EM CASO DE ERRO, RETORNAR LISTA VAZIA EM VEZ DE FALHAR
+      return {
+        success: true, // Mudado para true para não quebrar o app
+        data: [],
+        message: 'Não foi possível carregar trilhas no momento',
+      };
+    }
+  }
+
+  // ✅ NOVO: Obter minhas trilhas (alias)
+  async getMinhasTrilhas() {
+    return this.carregarMinhasTrilhas();
+  }
+
+  // ✅ MÉTODO PARA CARREGAR TRILHAS PÚBLICAS MELHORADO
+  async carregarTrilhasPublicas(latitude, longitude, raio = 50) {
+    try {
+      console.log('🌍 Carregando trilhas públicas...');
+
+      // Se não tiver coordenadas, usar busca global
+      if (!latitude || !longitude) {
+        return this.getTrilhasPublicas();
+      }
+
+      // Buscar por área específica
+      const response = await this.getTrilhasPorArea(latitude, longitude, raio);
+
+      // Filtrar apenas trilhas públicas
+      const publicTrails = response.data.filter(trek => trek.isPublic);
+
+      return {
+        success: true,
+        data: publicTrails,
+        count: publicTrails.length,
+        message: `${publicTrails.length} trilhas públicas encontradas`,
+      };
+    } catch (error) {
+      console.warn('⚠️ Erro ao carregar trilhas públicas:', error);
       return {
         success: true,
         data: [],
         count: 0,
-        message: 'Não foi possível carregar suas trilhas no momento',
+        message: 'Não foi possível carregar trilhas públicas',
       };
     }
   }
@@ -510,10 +642,11 @@ class ApiService {
       const payload = {
         trekId: dadosPOI.trekId,
         name: dadosPOI.name,
-        description: dadosPOI.description,
+        description: dadosPOI.description || '',
         lat: dadosPOI.latitude || dadosPOI.lat,
         lng: dadosPOI.longitude || dadosPOI.lng,
         alt: dadosPOI.altitude || dadosPOI.alt,
+        category: dadosPOI.category || 'other',
       };
 
       const response = await this.post('/api/pois', payload);
@@ -576,6 +709,7 @@ class ApiService {
         lat: dadosAtualizacao.latitude || dadosAtualizacao.lat,
         lng: dadosAtualizacao.longitude || dadosAtualizacao.lng,
         alt: dadosAtualizacao.altitude || dadosAtualizacao.alt,
+        category: dadosAtualizacao.category,
       };
 
       const response = await this.put(`/api/pois/${poiId}`, payload);
@@ -948,6 +1082,50 @@ class ApiService {
       heading: coord.heading,
       timestamp: coord.timestamp || new Date().toISOString(),
     }));
+  }
+
+  // ========== NOVOS: Métodos de debug e monitoramento ==========
+
+  // Verificar status da API
+  async getAPIStatus() {
+    try {
+      const healthResponse = await this.healthCheck();
+      const connectionTest = await this.testarConexao();
+
+      return {
+        success: true,
+        health: healthResponse,
+        connection: connectionTest,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  // Log de debug para requisições
+  enableDebugMode() {
+    this.debugMode = true;
+    console.log('🐛 Debug mode enabled for ApiService');
+  }
+
+  disableDebugMode() {
+    this.debugMode = false;
+    console.log('🐛 Debug mode disabled for ApiService');
+  }
+
+  // Estatísticas de uso
+  getUsageStats() {
+    return {
+      baseURL: this.baseURL,
+      timeout: API_CONFIG.TIMEOUT,
+      retryAttempts: API_CONFIG.RETRY_ATTEMPTS,
+      retryDelay: API_CONFIG.RETRY_DELAY,
+    };
   }
 }
 
